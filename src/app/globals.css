@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..800;1,9..144,300..700&family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Playfair+Display:ital,wght@0,400..800;1,400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-serif: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --background: #FDFBF7;
+  --foreground: #463836;
+}
+
+body {
+  color: var(--foreground);
+  background-color: var(--background);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom romantic scrapbook utilities */
+.font-editorial {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF6F0;
+}
+::-webkit-scrollbar-thumb {
+  background: #E2D5C3;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CFC0AA;
+}
+
+/* Polaroids and photo frame tape effect */
+.scrapbook-card {
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 1.5rem;
+  border: 1px solid #EFE7DB;
+  box-shadow: 0 4px 24px -2px rgba(110, 45, 59, 0.06);
+  transition: all 0.25s ease-in-out;
+}
+
+.scrapbook-card:hover {
+  border-color: #E2D5C3;
+  box-shadow: 0 8px 30px -4px rgba(110, 45, 59, 0.1);
+  transform: translateY(-2px);
+}
+
+.dark .scrapbook-card {
+  background: #1E161A;
+  border-color: #382830;
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45);
+}
+
+.dark .scrapbook-card:hover {
+  border-color: #553B47;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.65);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1A1316;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3D2B33;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #5A3F4C;
+}
