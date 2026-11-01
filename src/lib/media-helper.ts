@@ -362,6 +362,9 @@ export async function fetchMovieMetadata(rawUrl: string): Promise<MovieLogEntry>
   let thumbnailUrl = '';
   let genre = 'Romance / Drama';
   let platform: 'youtube' | 'imdb' | 'letterboxd' | 'link' = 'link';
+  let canonicalUrl = url;
+  let year: string | undefined;
+  let starring: string | undefined;
 
   if (parsed.platform === 'youtube' && parsed.id) {
     platform = 'youtube';
@@ -412,11 +415,34 @@ export async function fetchMovieMetadata(rawUrl: string): Promise<MovieLogEntry>
     }
     director = 'Letterboxd Selection';
     thumbnailUrl = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80';
-  } else if (/imdb\.com\/title\/tt\d+/i.test(url)) {
+  } else if (extractImdbId(url)) {
     platform = 'imdb';
+    const imdbId = extractImdbId(url) as string;
+    // Normalise localized / mobile / share variants to the canonical title page
+    canonicalUrl = `https://www.imdb.com/title/${imdbId}/`;
     title = 'IMDb Feature Film';
-    director = 'IMDb Official Selection';
+    director = '';
     thumbnailUrl = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80';
+
+    // IMDb's public suggestion endpoint returns title, year, top cast & poster (CORS-enabled)
+    try {
+      const res = await fetch(`https://v3.sg.media-imdb.com/suggestion/x/${imdbId}.json`);
+      if (res.ok) {
+        const data = await res.json();
+        const hit = (data?.d || []).find((d: { id?: string }) => d.id === imdbId) || data?.d?.[0];
+        if (hit) {
+          if (hit.l) title = hit.l;
+          if (hit.y) year = String(hit.y);
+          if (hit.s) starring = hit.s;
+          if (hit.i?.imageUrl) {
+            // Request a lighter 800px rendition of the poster
+            thumbnailUrl = String(hit.i.imageUrl).replace(/\._V1_.*\.jpg$/i, '._V1_UX800_.jpg');
+          }
+        }
+      }
+    } catch {
+      // Keep placeholder metadata; the user can fill it in via Edit
+    }
   } else {
     thumbnailUrl = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80';
   }
@@ -438,7 +464,7 @@ export async function fetchMovieMetadata(rawUrl: string): Promise<MovieLogEntry>
   const colors = await extractColorsFromImage(thumbnailUrl || url);
 
   return {
-    url,
+    url: canonicalUrl,
     title,
     director,
     thumbnailUrl,
@@ -447,8 +473,21 @@ export async function fetchMovieMetadata(rawUrl: string): Promise<MovieLogEntry>
     rating: 9.7,
     genre,
     platform,
+    ...(year ? { year } : {}),
+    ...(starring ? { starring } : {}),
     updated_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Extracts an IMDb title id (tt1234567) from any IMDb URL variant:
+ * www / m. subdomains, localized paths (imdb.com/th/title/...), or a bare id.
+ */
+export function extractImdbId(url: string): string | null {
+  const match =
+    url.match(/imdb\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?title\/(tt\d{5,})/i) ||
+    url.trim().match(/^(tt\d{5,})$/i);
+  return match ? match[1].toLowerCase() : null;
 }
 
 /**

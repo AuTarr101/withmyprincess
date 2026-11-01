@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/lib/store';
-import { MONTH_NAMES } from '@/lib/mock-data';
+import { MONTH_NAMES, getThailandNow } from '@/lib/mock-data';
 import { fetchMovieMetadata } from '@/lib/media-helper';
 import MovieBannerWidget from './MovieBannerWidget';
 import {
@@ -15,9 +15,9 @@ import {
 export default function MovieRankingLog() {
   const { getMonth, saveMonthMovie, theme } = useApp();
 
-  // Month navigation: starts at October 2026 (year 2026, month 10)
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(10);
+  // Month navigation: defaults to current Thailand time (Asia/Bangkok)
+  const [selectedYear, setSelectedYear] = useState<number>(() => getThailandNow().year);
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => getThailandNow().month);
 
   // Form input state
   const [inputUrl, setInputUrl] = useState('');

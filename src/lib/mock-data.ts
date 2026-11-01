@@ -34,13 +34,50 @@ export const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+/**
+ * Returns the real-time date components in Thailand Time (Asia/Bangkok, UTC+7).
+ */
+export function getThailandNow(): {
+  year: number;
+  month: number;
+  day: number;
+  monthName: string;
+  monthId: string;
+} {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+    }).formatToParts(now);
+
+    const year = Number(parts.find((p) => p.type === 'year')?.value) || now.getFullYear();
+    const month = Number(parts.find((p) => p.type === 'month')?.value) || now.getMonth() + 1;
+    const day = Number(parts.find((p) => p.type === 'day')?.value) || now.getDate();
+    const monthName = MONTH_NAMES[month - 1] || 'November';
+    const monthId = `${year}-${String(month).padStart(2, '0')}`;
+
+    return { year, month, day, monthName, monthId };
+  } catch {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const day = now.getDate();
+    const monthName = MONTH_NAMES[month - 1] || 'November';
+    const monthId = `${year}-${String(month).padStart(2, '0')}`;
+    return { year, month, day, monthName, monthId };
+  }
+}
+
 export const INITIAL_MONTHS: MonthData[] = [
   {
     id: '2026-10',
     month: 10,
     year: 2026,
     monthName: 'October',
-    is_current: true,
+    is_current: false,
     musicSong: {
       url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       title: 'Never Gonna Give You Up',
@@ -57,8 +94,11 @@ export const INITIAL_MONTHS: MonthData[] = [
     },
     movieLog: {
       url: 'https://www.youtube.com/watch?v=0pdqf4P9MB8',
-      title: 'La La Land (2016)',
+      title: 'La La Land',
+      year: '2016',
       director: 'Damien Chazelle',
+      producer: 'Fred Berger',
+      starring: 'Ryan Gosling, Emma Stone, John Legend, J.K. Simmons',
       thumbnailUrl: 'https://i.ytimg.com/vi/0pdqf4P9MB8/hqdefault.jpg',
       canvasColor: '#1E162B',
       accentColor: '#F4C95D',
@@ -72,12 +112,12 @@ export const INITIAL_MONTHS: MonthData[] = [
       title: 'It Takes Two',
       developer: 'Hazelight Studios',
       thumbnailUrl: 'https://i.ytimg.com/vi/ohClxMmNLQQ/hqdefault.jpg',
-      canvasColor: '#241834',
-      accentColor: '#C084FC',
+      canvasColor: '#5F3514',
+      accentColor: '#D9AD4E',
       rating: 9.9,
       genre: 'Co-Op Adventure',
-      hisRole: 'Cody 🧸',
-      herRole: 'May 🐶',
+      hisRole: 'Cody',
+      herRole: 'May',
       hoursPlayed: '24.5 hrs',
       completionStatus: '100% Completed ♡',
       platform: 'youtube',
@@ -128,6 +168,7 @@ export const INITIAL_MONTHS: MonthData[] = [
     month: 11,
     year: 2026,
     monthName: 'November',
+    is_current: true,
     categories: {
       movie: { category_slug: 'movie' },
       game: { category_slug: 'game' },

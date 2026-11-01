@@ -17,10 +17,10 @@ import {
   Check,
   Lock,
   AlertTriangle,
-  Sparkles,
   Lightbulb,
   LightbulbOff,
   Ticket,
+  Play,
 } from 'lucide-react';
 
 interface MovieBannerWidgetProps {
@@ -63,6 +63,13 @@ export default function MovieBannerWidget({
   const [directorInput, setDirectorInput] = useState(movie.director || '');
   const [genreInput, setGenreInput] = useState(movie.genre || '');
   const [ticketUrlInput, setTicketUrlInput] = useState(movie.ticketUrl || '');
+  const [yearInput, setYearInput] = useState(movie.year || '');
+  const [producerInput, setProducerInput] = useState(movie.producer || '');
+  const [starringInput, setStarringInput] = useState(movie.starring || '');
+  const [stillUrlInput, setStillUrlInput] = useState(movie.stillUrl || '');
+
+  // Poster still: click play to swap the still for the trailer embed
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Reflection state with auto-save
   const [reasonText, setReasonText] = useState(movie.reason || '');
@@ -84,7 +91,24 @@ export default function MovieBannerWidget({
     setDirectorInput(movie.director || '');
     setGenreInput(movie.genre || '');
     setTicketUrlInput(movie.ticketUrl || '');
-  }, [movie.title, movie.director, movie.genre, movie.ticketUrl]);
+    setYearInput(movie.year || '');
+    setProducerInput(movie.producer || '');
+    setStarringInput(movie.starring || '');
+    setStillUrlInput(movie.stillUrl || '');
+  }, [
+    movie.title,
+    movie.director,
+    movie.genre,
+    movie.ticketUrl,
+    movie.year,
+    movie.producer,
+    movie.starring,
+    movie.stillUrl,
+  ]);
+
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [movie.url]);
 
   const triggerSavedBadge = () => {
     setIsSaved(true);
@@ -121,14 +145,37 @@ export default function MovieBannerWidget({
       director: directorInput.trim() || 'Cinema Release',
       genre: genreInput.trim() || 'Romance / Cinema',
       ticketUrl: ticketUrlInput.trim() || undefined,
+      year: yearInput.trim() || undefined,
+      producer: producerInput.trim() || undefined,
+      starring: starringInput.trim() || undefined,
+      stillUrl: stillUrlInput.trim() || undefined,
     });
     triggerSavedBadge();
   };
 
   const parsed = parseMusicUrl(movie.url);
 
-  // Colors
-  const canvasBg = isDimmed ? '#08060A' : movie.canvasColor || '#1E162B';
+  // Poster derived values: split "(2016)" off legacy titles if no explicit year was saved
+  const yearMatch = (movie.title || '').match(/^(.*?)\s*\((\d{4})\)\s*$/);
+  const posterTitle = (yearMatch ? yearMatch[1] : movie.title) || 'Untitled Film';
+  const posterYear = movie.year || (yearMatch ? yearMatch[2] : String(year));
+  const castList = (movie.starring || '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const stillImage = movie.stillUrl || movie.thumbnailUrl;
+  const trailerEmbed =
+    parsed.platform === 'youtube' && parsed.embedUrl
+      ? `${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}autoplay=1`
+      : null;
+
+  // Poster print palette: cream paper by day, charcoal "midnight print" when lights are dimmed
+  const paperBg = isDimmed ? '#15120F' : '#ECE9E2';
+  const inkColor = isDimmed ? '#F1ECE2' : '#1E1B18';
+  const mutedInk = isDimmed ? '#8F877C' : '#7A756F';
+  const ruleColor = isDimmed ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
+
+  // Colors (accent still tints the remove-confirmation popup)
   const accentColor = movie.accentColor || '#F4C95D';
 
   const currentRating = movie.rating ?? 9.5;
@@ -136,20 +183,33 @@ export default function MovieBannerWidget({
 
   // Scannable QR Code for the Golden Ticket Stub (links to Letterboxd/IMDb/YouTube)
   const targetQrUrl = movie.ticketUrl?.trim() || movie.url;
-  const qrCodeUrl = getQrCodeImageUrl(targetQrUrl, '2A1A1F', 'FFFDF7', 280);
+  const qrCodeUrl = getQrCodeImageUrl(
+    targetQrUrl,
+    inkColor.replace('#', ''),
+    paperBg.replace('#', ''),
+    280
+  );
 
-  // 14 sprocket holes for the 35mm film strip rails
-  const sprocketHoles = Array.from({ length: 14 });
+  // Shared pill styling for the poster's top control bar
+  const pillBase =
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all cursor-pointer border active:scale-95';
+  const pillIdle = isDimmed
+    ? 'border-white/15 text-[#F1ECE2]/80 hover:text-[#F1ECE2] hover:bg-white/10'
+    : 'border-black/10 text-[#1E1B18]/70 hover:text-[#1E1B18] hover:bg-black/5';
+
+  // Inline edit field styling (underlined, transparent) so the poster layout stays intact while editing
+  const editField =
+    'w-full bg-transparent outline-none border-b border-dashed pb-0.5 placeholder:opacity-40 focus:border-solid';
 
   return (
-    <div className="w-full max-w-2xl sm:max-w-3xl mx-auto py-2">
+    <div className="w-full max-w-xl mx-auto py-2">
       {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2000px] select-none"
         style={{ minHeight: '820px' }}
       >
         <div
-          className="w-full relative rounded-3xl"
+          className="w-full relative rounded-md"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -158,71 +218,55 @@ export default function MovieBannerWidget({
           }}
         >
           {/* ========================================================
-              FRONT SIDE: 35mm Film Reel Frame & Midnight Screening
+              FRONT SIDE: Minimalist Film Poster Print
              ======================================================== */}
           <div
-            className={`w-full rounded-3xl p-7 sm:p-10 shadow-2xl relative border border-white/15 flex flex-col justify-between transition-colors duration-700 ${
+            className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
+              backgroundColor: paperBg,
+              color: inkColor,
               boxShadow: isDimmed
-                ? `0 35px 90px -10px rgba(0,0,0,0.95), 0 0 80px -15px ${accentColor}55`
-                : `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
               minHeight: '820px',
             }}
           >
-            {/* Subtle overhead cinema projector beam when Lights Dimmed */}
-            {isDimmed && (
-              <div
-                className="absolute inset-x-0 top-0 h-72 pointer-events-none opacity-25 rounded-t-3xl transition-opacity duration-700"
-                style={{
-                  background: `radial-gradient(ellipse at 50% 0%, ${accentColor}, transparent 70%)`,
-                }}
-              />
-            )}
-
-            {/* Top Bar: "Dim Lights" Toggle & Action Buttons (Edit/Done + Flip Ticket) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 relative z-20 mb-3">
-              {/* Interactive Spice: Dim the Lights Theatre Toggle */}
+            {/* Top Bar: Dim Lights · Edit/Done · Flip Ticket */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <button
                 type="button"
                 onClick={onToggleDim}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer shadow-md backdrop-blur-md border ${
-                  isDimmed
-                    ? 'bg-amber-400/20 border-amber-300/60 text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.3)]'
-                    : 'bg-white/15 hover:bg-white/25 border-white/20 text-white/90 hover:text-white'
+                className={`${pillBase} ${
+                  isDimmed ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
                 }`}
-                title={isDimmed ? 'Turn theatre lights back on' : 'Dim the lights for midnight screening mode'}
+                title={isDimmed ? 'Turn the lights back on' : 'Dim the lights for a midnight print'}
               >
                 {isDimmed ? (
                   <>
-                    <Lightbulb className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                    <Lightbulb className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
                     <span>Lights On</span>
                   </>
                 ) : (
                   <>
                     <LightbulbOff className="w-3.5 h-3.5" />
-                    <span>🎬 Dim Lights</span>
+                    <span>Dim Lights</span>
                   </>
                 )}
               </button>
 
               <div className="flex items-center gap-2">
-                {/* Edit / Done Toggle Button */}
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
-                    isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
-                  title={isEditing ? 'Save and lock edits' : 'Edit rating, details, and reflection'}
+                  title={isEditing ? 'Save and lock edits' : 'Edit poster details and rating'}
                 >
                   {isEditing ? (
                     <>
@@ -237,313 +281,339 @@ export default function MovieBannerWidget({
                   )}
                 </button>
 
-                {/* Corner Flip Ticket Button */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsPlaying(false);
                     setIsFlipped(true);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 transition-all text-xs font-semibold text-white/90 hover:text-white cursor-pointer shadow-md backdrop-blur-md"
-                  title="Flip to view Golden Cinema Ticket Stub"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip to view the Golden Cinema Ticket Stub"
                 >
-                  <Ticket className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform duration-300" />
+                  <Ticket className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
                   <span>Flip Ticket</span>
                 </button>
               </div>
             </div>
 
             {/* ========================================================
-                1. 35MM PERFORATED FILM STRIP FRAME AROUND TRAILER
+                1. CINEMATIC STILL (click play to roll the trailer)
                ======================================================== */}
-            <div className="relative z-10 w-full my-3 flex justify-center">
-              <div
-                className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-white/20 bg-[#0B090E] p-2 sm:p-3 transition-shadow duration-700"
-                style={{
-                  boxShadow: isDimmed
-                    ? `0 0 55px -5px ${accentColor}55, 0 20px 50px rgba(0,0,0,0.9)`
-                    : '0 20px 45px rgba(0,0,0,0.65)',
-                }}
-              >
-                {/* Top 35mm Sprocket Holes & Edge Code */}
-                <div className="space-y-1.5 mb-2">
-                  <div className="flex items-center justify-between px-1 text-[9px] font-mono tracking-widest uppercase text-amber-400/60">
-                    <span>KODAK 5219 • 35MM</span>
-                    <span>▶ MIDNIGHT SCREENING</span>
-                    <span>10A</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5 px-1 py-0.5">
-                    {sprocketHoles.map((_, idx) => (
-                      <span
-                        key={`top-${idx}`}
-                        className="w-3 sm:w-3.5 h-2 sm:h-2.5 rounded-[2px] bg-white/15 border border-white/10 shadow-inner"
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Inner 16:9 Cinema Screen */}
-                <div className="w-full aspect-video rounded-lg overflow-hidden bg-black border border-white/10 relative">
-                  {parsed.platform === 'youtube' && parsed.embedUrl ? (
-                    <iframe
-                      src={parsed.embedUrl}
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      className="w-full h-full"
-                      title={movie.title || 'Movie Trailer'}
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/80 group">
+              {isPlaying && trailerEmbed ? (
+                <iframe
+                  src={trailerEmbed}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                  title={posterTitle}
+                />
+              ) : (
+                <>
+                  {stillImage ? (
+                    <img
+                      src={stillImage}
+                      alt={posterTitle}
+                      className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02] ${
+                        movie.platform === 'imdb' && !movie.stillUrl ? 'object-[center_25%]' : ''
+                      }`}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-black/60 relative group">
-                      {movie.thumbnailUrl ? (
-                        <img
-                          src={movie.thumbnailUrl}
-                          alt={movie.title || 'Movie Poster'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Film className="w-16 h-16 text-white/40" />
-                      )}
-                      <a
-                        href={movie.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
-                          Open Film Link ↗
-                        </span>
-                      </a>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Film className="w-14 h-14 text-white/30" />
                     </div>
                   )}
-                </div>
 
-                {/* Bottom 35mm Sprocket Holes & Couple Edge Stamp */}
-                <div className="space-y-1.5 mt-2">
-                  <div className="flex items-center justify-between gap-1.5 px-1 py-0.5">
-                    {sprocketHoles.map((_, idx) => (
-                      <span
-                        key={`bot-${idx}`}
-                        className="w-3 sm:w-3.5 h-2 sm:h-2.5 rounded-[2px] bg-white/15 border border-white/10 shadow-inner"
-                      />
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between px-1 text-[9px] font-mono tracking-widest uppercase text-amber-400/60">
-                    <span>EVER TOGETHER ♡</span>
-                    <span>GOOGLE & NAMI</span>
-                    <span>{monthName.slice(0, 3).toUpperCase()} {year}</span>
-                  </div>
-                </div>
-              </div>
+                  {trailerEmbed ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlaying(true)}
+                      className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                      title="Play trailer"
+                    >
+                      <span className="w-14 h-14 rounded-full bg-white/85 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-[#1E1B18] fill-[#1E1B18] ml-0.5" />
+                      </span>
+                    </button>
+                  ) : (
+                    <a
+                      href={movie.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
+                        Open Film Link ↗
+                      </span>
+                    </a>
+                  )}
+                </>
+              )}
             </div>
 
+            {/* Optional custom still URL while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  still image
+                </span>
+                <input
+                  type="url"
+                  value={stillUrlInput}
+                  onChange={(e) => setStillUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: paste a movie still image URL..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
+
             {/* ========================================================
-                2. MOVIE DETAILS (BELOW): Title, Director, ONLY Genre, Popcorn Rating
+                2. TITLE + YEAR
                ======================================================== */}
-            <div className="relative z-10 text-center space-y-4 my-3">
-              {/* Movie Title & Director (Editable when in Edit mode) */}
+            <div className="mt-6">
               {isEditing ? (
-                <div className="max-w-md mx-auto space-y-2 bg-black/30 p-3 rounded-2xl border border-amber-400/30">
+                <div className="flex items-end gap-3">
                   <input
                     type="text"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
                     onBlur={handleDetailBlur}
-                    placeholder="Movie Title (e.g. La La Land)"
-                    className="w-full bg-transparent text-center font-serif text-xl sm:text-2xl font-bold text-white placeholder-white/40 outline-none border-b border-white/15 pb-1"
+                    placeholder="MOVIE TITLE"
+                    className={`${editField} font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
                   />
                   <input
                     type="text"
-                    value={directorInput}
-                    onChange={(e) => setDirectorInput(e.target.value)}
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
                     onBlur={handleDetailBlur}
-                    placeholder="Director / Studio (e.g. Damien Chazelle)"
-                    className="w-full bg-transparent text-center text-sm sm:text-base font-medium outline-none border-b border-white/15 pb-1"
-                    style={{ color: accentColor }}
-                  />
-                  <input
-                    type="text"
-                    value={genreInput}
-                    onChange={(e) => setGenreInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Genre (e.g. Romance / Musical)"
-                    className="w-full bg-transparent text-center text-xs uppercase tracking-widest text-amber-200 outline-none pt-0.5"
+                    placeholder="YEAR"
+                    className={`${editField} font-poster text-lg sm:text-xl w-16 shrink-0`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
                   />
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white line-clamp-2 drop-shadow-sm">
-                    {movie.title || 'Untitled Film'}
-                  </h3>
-                  <p
-                    className="font-medium text-base sm:text-lg tracking-wide"
-                    style={{ color: accentColor }}
-                  >
-                    {movie.director || 'Cinema Release'}
-                  </p>
-                </div>
-              )}
-
-              {/* ONLY GENRE BADGE */}
-              {!isEditing && (
-                <div className="flex items-center justify-center pt-1">
+                <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl">
+                  {posterTitle}
                   <span
-                    className="px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase border backdrop-blur-md shadow-xs"
-                    style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                      borderColor: 'rgba(255, 255, 255, 0.25)',
-                      color: accentColor,
-                    }}
+                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2 align-baseline"
+                    style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
                   >
-                    {movie.genre || 'Romance / Cinema'}
+                    {posterYear}
                   </span>
-                </div>
+                </h3>
               )}
+            </div>
 
-              {/* 🍿 Popcorn Meter / Rating (1-decimal precision, locked unless isEditing) */}
-              <div className="pt-2 flex flex-col items-center gap-2">
-                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                  <span className="text-base sm:text-lg mr-1" title="Popcorn Meter">
-                    🍿
+            {/* ========================================================
+                3. METADATA ROWS: genre · directed by · produced by · rated
+               ======================================================== */}
+            <div className="mt-4 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide">
+              {[
+                {
+                  label: 'genre',
+                  value: movie.genre || 'Romance / Cinema',
+                  input: genreInput,
+                  setInput: setGenreInput,
+                  placeholder: 'ROMANTIC DRAMA',
+                },
+                {
+                  label: 'directed by',
+                  value: movie.director || 'Cinema Release',
+                  input: directorInput,
+                  setInput: setDirectorInput,
+                  placeholder: 'DIRECTOR',
+                },
+                {
+                  label: 'produced by',
+                  value: movie.producer || '—',
+                  input: producerInput,
+                  setInput: setProducerInput,
+                  placeholder: 'PRODUCER',
+                },
+              ].map((row) => (
+                <div key={row.label} className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    {row.label}
                   </span>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
-                    <button
-                      key={starIndex}
-                      type="button"
-                      disabled={!isEditing}
-                      onClick={() => handleStarClick(starIndex)}
-                      onMouseEnter={() => isEditing && setHoverRating(starIndex)}
-                      onMouseLeave={() => isEditing && setHoverRating(null)}
-                      className={`p-1 transition-transform ${
-                        isEditing
-                          ? 'hover:scale-125 cursor-pointer'
-                          : 'cursor-default opacity-95'
-                      }`}
-                      title={isEditing ? `Click to rate ${starIndex}/10` : 'Click Edit to adjust rating'}
-                    >
-                      <Star
-                        className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                          starIndex <= displayRating
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                            : 'text-white/20 fill-white/5'
-                        }`}
-                      />
-                    </button>
-                  ))}
-
-                  {/* Rating numerical badge with one decimal point */}
                   {isEditing ? (
-                    <div className="ml-2 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-lg border border-amber-400/40">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="10"
-                        value={ratingInput}
-                        onChange={handleRatingInputChange}
-                        className="w-12 bg-transparent text-sm sm:text-base font-mono font-bold text-amber-300 outline-none text-center"
-                        title="Edit decimal rating"
-                      />
-                      <span className="font-mono text-xs text-white/50">/ 10</span>
-                    </div>
+                    <input
+                      type="text"
+                      value={row.input}
+                      onChange={(e) => row.setInput(e.target.value)}
+                      onBlur={handleDetailBlur}
+                      placeholder={row.placeholder}
+                      className={`${editField} uppercase`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                    />
                   ) : (
-                    <span className="ml-2 font-mono text-sm sm:text-base font-bold text-amber-300">
-                      {currentRating.toFixed(1)} / 10
-                    </span>
+                    <span className="uppercase font-normal truncate">{row.value}</span>
                   )}
                 </div>
+              ))}
 
-                {/* Edit hint indicator */}
+              {/* Popcorn rating row (locked unless editing) */}
+              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-center">
+                <span className="font-light lowercase" style={{ color: mutedInk }}>
+                  rated
+                </span>
                 {isEditing ? (
-                  <span className="text-[11px] text-amber-300/80 font-mono tracking-wide">
-                    Click stars or type decimal to adjust • click Done to lock
-                  </span>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
+                      <button
+                        key={starIndex}
+                        type="button"
+                        onClick={() => handleStarClick(starIndex)}
+                        onMouseEnter={() => setHoverRating(starIndex)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-0.5 hover:scale-125 transition-transform cursor-pointer"
+                        title={`Rate ${starIndex}/10`}
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            starIndex <= displayRating
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'opacity-25'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={ratingInput}
+                      onChange={handleRatingInputChange}
+                      className={`${editField} w-12 ml-1 text-center font-mono text-xs`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                      title="Edit decimal rating"
+                    />
+                    <span className="text-xs" style={{ color: mutedInk }}>/ 10</span>
+                  </div>
                 ) : (
-                  <span className="text-[11px] text-white/35 font-mono flex items-center gap-1">
-                    <Lock className="w-3 h-3" />
-                    <span>Popcorn meter locked</span>
+                  <span className="uppercase flex items-center gap-1.5">
+                    <span>🍿 {currentRating.toFixed(1)} / 10</span>
+                    <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Bottom Actions Row: Link to trailer & Remove button */}
-            <div className="relative z-10 mt-5 pt-4 border-t border-white/15 flex items-center justify-between">
-              <a
-                href={movie.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/70 hover:text-white transition-colors"
-              >
-                <span>
-                  Open in{' '}
-                  {movie.platform === 'letterboxd'
-                    ? 'Letterboxd'
-                    : movie.platform === 'imdb'
-                    ? 'IMDb'
-                    : 'YouTube'}
+            {/* ========================================================
+                4. STARRING
+               ======================================================== */}
+            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
+              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
+                starring
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={starringInput}
+                  onChange={(e) => setStarringInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Emilia Clarke, Sam Claflin, Matthew Lewis..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              ) : castList.length > 0 ? (
+                <span className="flex flex-wrap gap-x-4 gap-y-1 uppercase">
+                  {castList.map((name) => (
+                    <span key={name}>{name}</span>
+                  ))}
                 </span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+              ) : (
+                <span className="uppercase opacity-40">Google &nbsp; Nami</span>
+              )}
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setIsConfirmingDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-red-500/20 text-white/50 hover:text-red-300 transition-colors cursor-pointer text-xs border border-transparent hover:border-red-400/30"
-                title="Remove logged movie"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Remove</span>
-              </button>
+            {/* Footer: couple print stamp · open link · remove */}
+            <div
+              className="mt-auto pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={movie.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full hover:opacity-100 opacity-80 transition-opacity"
+                  title="Open film link"
+                >
+                  <span>
+                    {movie.platform === 'letterboxd'
+                      ? 'Letterboxd'
+                      : movie.platform === 'imdb'
+                      ? 'IMDb'
+                      : movie.platform === 'youtube'
+                      ? 'YouTube'
+                      : 'Film Link'}
+                  </span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Remove logged movie"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* ========================================================
-              BACK SIDE: Golden Foil Cinema Ticket Stub + Reflection
+              BACK SIDE: Poster-Print Ticket Stub + Screening Notes
+              (same paper, ink & condensed type as the front)
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-3xl p-7 sm:p-10 shadow-2xl border border-white/15 flex flex-col justify-between ${
+            className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDimmed
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
               minHeight: '820px',
             }}
           >
-            {/* Ambient dot pattern */}
-            <div
-              className="absolute inset-0 opacity-15 pointer-events-none rounded-3xl"
-              style={{
-                backgroundImage: `radial-gradient(circle at 2px 2px, ${accentColor} 1.5px, transparent 0)`,
-                backgroundSize: '28px 28px',
-              }}
-            />
-
-            {/* Back Side Top Bar: Section Title & Buttons (Edit/Done & Flip Back) */}
-            <div className="flex items-center justify-between relative z-40 mb-3">
-              <span className="text-xs uppercase tracking-widest text-white/60 font-mono font-medium flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Cinema Ticket Stub & Memory</span>
+            {/* Top Bar: section label · Edit/Done · Flip Back */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <span
+                className="font-mono text-[11px] tracking-widest uppercase"
+                style={{ color: mutedInk }}
+              >
+                Ticket Stub &amp; Notes
               </span>
 
               <div className="flex items-center gap-2">
-                {/* Edit / Done Toggle Button on Back Side */}
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
-                    isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
-                  title={isEditing ? 'Save and lock reflection' : 'Edit reflection and rating'}
+                  title={isEditing ? 'Save and lock notes' : 'Edit notes and ticket link'}
                 >
                   {isEditing ? (
                     <>
@@ -558,15 +628,14 @@ export default function MovieBannerWidget({
                   )}
                 </button>
 
-                {/* Corner Flip Back Button */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsFlipped(false);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 border border-white/30 transition-all text-xs font-semibold text-white cursor-pointer shadow-lg backdrop-blur-md relative z-50"
-                  title="Flip back to screening room"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip back to the poster"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
                   <span>Flip Back</span>
@@ -575,178 +644,153 @@ export default function MovieBannerWidget({
             </div>
 
             {/* ========================================================
-                THE ARTIFACT: GOLDEN FOIL CINEMA TICKET STUB
+                1. HEADLINE (mirrors the poster title + year)
                ======================================================== */}
-            <div className="relative z-30 my-2 flex flex-col items-center">
-              <div className="w-full max-w-xl relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#FFF9EA] via-[#F7E8C6] to-[#EDD29F] text-[#2A1A1F] border-2 border-[#D4AF37]/80 shadow-[0_15px_35px_rgba(0,0,0,0.45)] flex flex-col sm:flex-row">
-                {/* Left Semicircular Ticket Notch */}
-                <div
-                  className="hidden sm:block absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-r-2 border-[#D4AF37]/80"
-                  style={{ backgroundColor: canvasBg }}
-                />
-                {/* Right Semicircular Ticket Notch */}
-                <div
-                  className="hidden sm:block absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full border-l-2 border-[#D4AF37]/80"
-                  style={{ backgroundColor: canvasBg }}
-                />
-
-                {/* Left Main Ticket Stub */}
-                <div className="flex-1 p-5 sm:pl-7 sm:pr-5 flex flex-col justify-between space-y-3 border-b-2 sm:border-b-0 sm:border-r-2 border-dashed border-[#B68F40]/50">
-                  {/* Gold Foil Header Stamp */}
-                  <div className="flex items-center justify-between border-b border-[#B68F40]/35 pb-2">
-                    <span className="text-[10px] sm:text-[11px] font-mono font-extrabold tracking-widest uppercase text-[#7E3B4D] bg-[#7E3B4D]/10 px-2.5 py-0.5 rounded-full border border-[#7E3B4D]/25">
-                      ★ ADMIT TWO : GOOGLE & NAMI ♡
-                    </span>
-                    <span className="text-[10px] font-mono font-bold text-[#8A6928]">
-                      VIP SCREENING
-                    </span>
-                  </div>
-
-                  {/* Film Title & Director on Ticket */}
-                  <div>
-                    <h4 className="font-serif text-lg sm:text-xl font-bold text-[#2A1A1F] leading-snug line-clamp-1">
-                      {movie.title || 'Feature Film'}
-                    </h4>
-                    <p className="text-xs font-medium text-[#6E473B] italic">
-                      Directed by {movie.director || 'Cinema Release'}
-                    </p>
-                  </div>
-
-                  {/* Ticket Perforated Metadata Grid */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 text-[10px] font-mono">
-                    <div className="bg-[#2A1A1F]/5 rounded-lg p-1.5 border border-[#B68F40]/25">
-                      <span className="block text-[8px] uppercase text-[#8A6928]">DATE</span>
-                      <span className="font-bold text-[#2A1A1F]">
-                        {monthName.slice(0, 3).toUpperCase()} {year}
-                      </span>
-                    </div>
-                    <div className="bg-[#2A1A1F]/5 rounded-lg p-1.5 border border-[#B68F40]/25">
-                      <span className="block text-[8px] uppercase text-[#8A6928]">SEATS</span>
-                      <span className="font-bold text-[#2A1A1F]">ROW G • 1 & 2</span>
-                    </div>
-                    <div className="bg-[#2A1A1F]/5 rounded-lg p-1.5 border border-[#B68F40]/25">
-                      <span className="block text-[8px] uppercase text-[#8A6928]">POPCORN</span>
-                      <span className="font-bold text-[#7E3B4D]">🍿 {currentRating.toFixed(1)}/10</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Tear-Off QR Stub */}
-                <div className="sm:w-40 p-4 flex flex-col items-center justify-center bg-[#F4E1B6]/60 shrink-0">
-                  <a
-                    href={targetQrUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 rounded-xl bg-[#FFFDF7] border border-[#B68F40]/40 shadow-xs hover:scale-105 transition-transform"
-                    title="Scan or click to open IMDb / Letterboxd / Trailer"
-                  >
-                    <img
-                      src={qrCodeUrl}
-                      alt="Cinema Ticket QR Code"
-                      className="w-20 h-20 sm:w-22 sm:h-22 rounded-lg"
-                    />
-                  </a>
-                  <span className="mt-1.5 text-[9px] font-mono font-bold tracking-widest uppercase text-[#6E473B]">
-                    NO. {monthId.replace('-', '')}02
-                  </span>
-                  <span className="text-[8px] font-mono uppercase tracking-wider text-[#8A6928]">
-                    SCAN TICKET QR
-                  </span>
-                </div>
-              </div>
-
-              {/* Optional IMDb / Letterboxd link input when in Edit Mode */}
-              {isEditing && (
-                <div className="w-full max-w-xl mt-2 flex items-center gap-2 bg-black/30 px-3.5 py-2 rounded-xl border border-amber-300/30 text-xs">
-                  <span className="text-amber-200/80 font-mono whitespace-nowrap">Ticket QR Link:</span>
-                  <input
-                    type="url"
-                    value={ticketUrlInput}
-                    onChange={(e) => setTicketUrlInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Optional: Paste IMDb or Letterboxd URL for ticket QR..."
-                    className="flex-1 bg-transparent text-white placeholder-white/35 outline-none text-xs"
-                  />
-                </div>
-              )}
-            </div>
+            <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
+              Admit Two
+              <span
+                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
+                style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
+              >
+                Google &amp; Nami
+              </span>
+            </h3>
 
             {/* ========================================================
-                BESPOKE QUESTION PROMPT: "Who cried first / favorite quote"
+                2. MINIMAL TICKET STUB: metadata rows + tear-off QR
                ======================================================== */}
-            <div className="relative z-30 my-3 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-white/85 flex items-center gap-2 flex-wrap">
-                  <span>Who cried first / favorite quote from the film</span>
-                  {isEditing ? (
-                    <span className="text-[11px] text-amber-300/80 font-normal lowercase">
-                      (editing mode)
+            <div
+              className="mt-5 flex flex-col sm:flex-row border"
+              style={{ borderColor: ruleColor }}
+            >
+              <div
+                className="flex-1 p-4 sm:p-5 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide border-b sm:border-b-0 sm:border-r border-dashed"
+                style={{ borderColor: ruleColor }}
+              >
+                {[
+                  { label: 'film', value: posterTitle },
+                  { label: 'directed by', value: movie.director || '—' },
+                  { label: 'date', value: `${monthName} ${year}` },
+                  { label: 'seats', value: 'Row G · 1 & 2' },
+                  { label: 'rated', value: `🍿 ${currentRating.toFixed(1)} / 10` },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
+                  >
+                    <span className="font-light lowercase" style={{ color: mutedInk }}>
+                      {row.label}
                     </span>
-                  ) : (
-                    <span className="text-[11px] text-white/40 font-normal lowercase flex items-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      <span>locked • click Edit above to change</span>
-                    </span>
-                  )}
-                </label>
-                {isSaved && (
-                  <span className="text-[11px] text-emerald-300 font-mono flex items-center gap-1 animate-in fade-in">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Saved ♡</span>
+                    <span className="uppercase truncate">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tear-off QR stub */}
+              <div className="sm:w-36 p-4 flex flex-col items-center justify-center gap-1.5 shrink-0">
+                <a
+                  href={targetQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-80 transition-opacity"
+                  title="Scan or click to open IMDb / Letterboxd / Trailer"
+                >
+                  <img src={qrCodeUrl} alt="Ticket QR code" className="w-20 h-20" />
+                </a>
+                <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: mutedInk }}>
+                  No. {monthId.replace('-', '')}02
+                </span>
+              </div>
+            </div>
+
+            {/* Optional IMDb / Letterboxd QR link while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  ticket link
+                </span>
+                <input
+                  type="url"
+                  value={ticketUrlInput}
+                  onChange={(e) => setTicketUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: IMDb or Letterboxd URL for the QR..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
+
+            {/* ========================================================
+                3. SCREENING NOTES: who cried first / favorite quote
+               ======================================================== */}
+            <div className="mt-6 flex-1 flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
+                <span>
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    notes
                   </span>
+                  <span className="uppercase ml-3">Who cried first / favorite quote</span>
+                </span>
+                {isSaved ? (
+                  <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
+                    <Check className="w-3 h-3" />
+                    Saved ♡
+                  </span>
+                ) : (
+                  !isEditing && <Lock className="w-3 h-3 opacity-30 shrink-0" />
                 )}
               </div>
 
-              {/* Romantic Note Textarea / Locked View */}
-              <div
-                className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
-                  isEditing
-                    ? 'border-amber-300/50 focus-within:border-amber-300 bg-black/40 ring-1 ring-amber-300/20'
-                    : 'border-white/15 bg-black/25'
-                }`}
-              >
+              <div className="flex-1 relative border" style={{ borderColor: ruleColor }}>
                 {isEditing ? (
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Write down your favorite scene, quote, who cried first, or what snacks you ate together during the movie..."
-                    className="w-full h-full min-h-[200px] p-5 text-sm sm:text-base text-white placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed"
+                    placeholder="Your favorite scene, a quote, who cried first, the snacks you shared..."
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
+                    style={{ color: inkColor }}
                   />
                 ) : (
                   <div
                     onClick={onToggleEdit}
-                    className="w-full h-full min-h-[200px] p-5 text-sm sm:text-base text-white/90 font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
-                    title="Click Edit to modify"
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
+                    title="Click to edit"
                   >
                     {reasonText.trim() ? (
                       reasonText
                     ) : (
-                      <span className="text-white/35 italic">
-                        No screening notes written yet. Click &quot;Edit&quot; above to jot down your favorite scene or quote...
+                      <span className="italic" style={{ color: mutedInk }}>
+                        No screening notes yet. Click Edit to write your favorite scene or quote...
                       </span>
                     )}
                   </div>
                 )}
-                <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-white/30">
-                  {reasonText.length} characters
-                </div>
+                <span
+                  className="absolute bottom-2 right-3 pointer-events-none font-mono text-[10px]"
+                  style={{ color: mutedInk }}
+                >
+                  {reasonText.length}
+                </span>
               </div>
             </div>
 
-            {/* Back Side Bottom Bar: Quick Flip Back & Couple Watermark */}
-            <div className="relative z-40 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-white/60">
+            {/* Footer: couple print stamp · flip back */}
+            <div
+              className="pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
               <button
                 type="button"
                 onClick={() => setIsFlipped(false)}
-                className="hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
               >
-                <Repeat className="w-3.5 h-3.5" />
-                <span>Return to 35mm screening</span>
+                <Repeat className="w-3 h-3" />
+                <span>Back to poster</span>
               </button>
-
-              <span className="font-serif italic text-white/40">
-                Ever, Together ♡ Google & Nami
-              </span>
             </div>
           </div>
         </div>

@@ -1,20 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import ThemeSlider from './ThemeSlider';
+import { getThailandNow } from '@/lib/mock-data';
 
 export default function HeroBanner() {
-  const [currentMonthName, setCurrentMonthName] = useState('October');
+  const [thailandTime, setThailandTime] = useState(() => getThailandNow());
 
   useEffect(() => {
-    try {
-      const month = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date());
-      if (month) setCurrentMonthName(month);
-    } catch {
-      // Fallback
-    }
+    setThailandTime(getThailandNow());
   }, []);
+
+  const showcaseHref = `/showcase?year=${thailandTime.year}&month=${thailandTime.month}`;
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FAF5EE] via-[#F8F2E8] to-[#FAF5EE] dark:from-[#241A1E] dark:via-[#1E1519] dark:to-[#171014] border border-[#EDE4D8] dark:border-[#382630] p-7 sm:p-10 shadow-[0_4px_24px_rgba(110,45,59,0.06)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.5)] transition-all duration-300">
@@ -56,15 +55,15 @@ export default function HeroBanner() {
           大きなお腹のテディベアと、永遠に完璧な小さなお姫様の思い出だけ
         </p>
 
-        {/* Action button based on current calendar month */}
+        {/* Action button based on current calendar month -> Opens Full Showcase Tab */}
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-wine-600 hover:bg-wine-700 dark:bg-[#993A52] dark:hover:bg-[#B34561] text-white font-medium text-sm transition-all shadow-[0_4px_14px_rgba(126,59,77,0.22)] dark:shadow-[0_4px_18px_rgba(153,58,82,0.35)] active:scale-[0.98] cursor-default"
+          <Link
+            href={showcaseHref}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-wine-600 hover:bg-wine-700 dark:bg-[#993A52] dark:hover:bg-[#B34561] text-white font-medium text-sm transition-all shadow-[0_4px_14px_rgba(126,59,77,0.22)] dark:shadow-[0_4px_18px_rgba(153,58,82,0.35)] active:scale-[0.98] cursor-pointer"
           >
-            <span>Open {currentMonthName} Ranking</span>
+            <span>Open {thailandTime.monthName} Ranking</span>
             <ArrowRight className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
       </div>
     </div>

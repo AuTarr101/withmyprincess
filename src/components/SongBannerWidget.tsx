@@ -6,7 +6,6 @@ import { useApp } from '@/lib/store';
 import {
   parseMusicUrl,
   getSpotifyUri,
-  cssColorToHex,
   getSpotifyCodeImageUrl,
   getQrCodeImageUrl,
 } from '@/lib/media-helper';
@@ -35,7 +34,8 @@ export default function SongBannerWidget({
   isEditing,
   onToggleEdit,
 }: SongBannerWidgetProps) {
-  const { deleteMonthSong, updateMonthSongRating, updateMonthSongReason, updateMonthSongSpotify } = useApp();
+  const { deleteMonthSong, updateMonthSongRating, updateMonthSongReason, updateMonthSongSpotify, theme } = useApp();
+  const isDark = theme === 'dark';
 
   // Flip state (front vs back blank canvas)
   const [isFlipped, setIsFlipped] = useState(false);
@@ -86,21 +86,32 @@ export default function SongBannerWidget({
 
   const parsed = parseMusicUrl(song.url);
 
-  // Colors
-  const canvasBg = song.canvasColor || '#231826';
-  const accentColor = song.accentColor || '#E8B4C0';
+  // Overall Light / Dark Theme Palette
+  const cardBg = isDark ? '#1E161A' : '#FFFFFF';
+  const cardBorder = isDark ? '#382830' : '#EFE7DB';
+  const primaryText = isDark ? '#F3E8EB' : '#3A2832';
+  const accentColor = isDark ? song.accentColor || '#E8B4C0' : '#7E3B4D';
+  const cardShadow = isDark
+    ? '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px -10px rgba(232, 180, 192, 0.12)'
+    : '0 20px 50px -12px rgba(110, 45, 59, 0.12), 0 4px 20px -4px rgba(110, 45, 59, 0.06)';
 
   const currentRating = song.rating ?? 9.5;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
 
-  // Real scannable codes
+  // Real scannable codes synced to Dark / Light theme
   const spotifyUri = getSpotifyUri(song.url) || getSpotifyUri(song.spotifyUrl);
-  const canvasHex = cssColorToHex(canvasBg);
-  const spotifyCodeUrl = spotifyUri ? getSpotifyCodeImageUrl(spotifyUri, canvasHex, 'white') : null;
+  const codeBgHex = isDark ? '22181E' : 'FAF6F0';
+  const codeBarColor = isDark ? 'white' : 'black';
+  const qrFgHex = isDark ? 'F3E8EB' : '463836';
+  const qrBgHex = isDark ? '22181E' : 'FAF6F0';
+
+  const spotifyCodeUrl = spotifyUri
+    ? getSpotifyCodeImageUrl(spotifyUri, codeBgHex, codeBarColor)
+    : null;
   const openSpotifyUrl = spotifyUri
     ? `https://open.spotify.com/${spotifyUri.split(':')[1]}/${spotifyUri.split(':')[2]}`
     : null;
-  const qrCodeUrl = getQrCodeImageUrl(song.url, canvasHex, 'FFFFFF');
+  const qrCodeUrl = getQrCodeImageUrl(song.url, qrFgHex, qrBgHex);
 
   const [spotifyInput, setSpotifyInput] = useState('');
   const [spotifyError, setSpotifyError] = useState('');
@@ -120,7 +131,7 @@ export default function SongBannerWidget({
 
   return (
     <div className="w-full max-w-2xl sm:max-w-3xl mx-auto py-2">
-      {/* 3D Flip Card Container with Taller Poster Proportion */}
+      {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2000px] select-none"
         style={{ minHeight: '800px' }}
@@ -135,16 +146,17 @@ export default function SongBannerWidget({
           }}
         >
           {/* ========================================================
-              FRONT SIDE: Taller Canvas with Smaller YouTube Embed Above
+              FRONT SIDE: Song Player & Details (Matches Light/Dark Theme)
              ======================================================== */}
           <div
-            className={`w-full rounded-3xl p-7 sm:p-10 shadow-2xl relative border border-white/15 flex flex-col justify-between ${
+            className={`w-full rounded-3xl p-7 sm:p-10 relative border flex flex-col justify-between transition-colors duration-300 ${
               isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              color: primaryText,
+              boxShadow: cardShadow,
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
@@ -153,7 +165,7 @@ export default function SongBannerWidget({
           >
             {/* Top Bar: Section Title & Buttons (Edit/Done & Flip) */}
             <div className="flex items-center justify-between relative z-20 mb-3">
-              <span className="text-xs uppercase tracking-widest text-white/60 font-mono font-medium">
+              <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-rose-200/60 font-mono font-medium">
                 Song of the Month
               </span>
 
@@ -162,10 +174,10 @@ export default function SongBannerWidget({
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer ${
                     isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                      ? 'bg-wine-700 text-white hover:bg-wine-800 dark:bg-amber-400 dark:text-stone-900 dark:hover:bg-amber-300 ring-2 ring-wine-300 dark:ring-amber-300/60'
+                      : 'bg-cream-100 hover:bg-cream-200 border border-cream-300 text-stone-700 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/15 dark:text-rose-100'
                   }`}
                   title={isEditing ? 'Save and lock edits' : 'Edit rating and reflection'}
                 >
@@ -189,7 +201,7 @@ export default function SongBannerWidget({
                     e.stopPropagation();
                     setIsFlipped(true);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 transition-all text-xs font-semibold text-white/90 hover:text-white cursor-pointer shadow-md backdrop-blur-md"
+                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cream-100 hover:bg-cream-200 border border-cream-300 text-wine-800 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/15 dark:text-rose-100 active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-xs"
                   title="Click to flip card"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
@@ -199,10 +211,10 @@ export default function SongBannerWidget({
             </div>
 
             {/* ========================================================
-                1. YOUTUBE EMBED (ABOVE) - A LITTLE BIT SMALLER & CENTERED
+                1. YOUTUBE / SPOTIFY EMBED (ABOVE)
                ======================================================== */}
             <div className="relative z-10 w-full my-4 flex justify-center">
-              <div className="w-full max-w-lg aspect-video rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black">
+              <div className="w-full max-w-lg aspect-video rounded-2xl overflow-hidden shadow-xl border-2 border-cream-200 dark:border-[#3A2832] bg-stone-950">
                 {parsed.platform === 'youtube' && parsed.embedUrl ? (
                   <iframe
                     src={parsed.embedUrl}
@@ -225,7 +237,7 @@ export default function SongBannerWidget({
                     title={song.title || 'Spotify Track'}
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-black/40">
+                  <div className="w-full h-full flex items-center justify-center bg-stone-900">
                     {song.thumbnailUrl ? (
                       <img
                         src={song.thumbnailUrl}
@@ -241,12 +253,12 @@ export default function SongBannerWidget({
             </div>
 
             {/* ========================================================
-                2. DETAILS (BELOW): Title, Artist, Genre (ONLY), Rating
+                2. DETAILS (BELOW): Title, Artist, Genre, Rating
                ======================================================== */}
             <div className="relative z-10 text-center space-y-4 my-4">
               {/* Song Title & Artist */}
               <div className="space-y-1.5">
-                <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white line-clamp-2 drop-shadow-sm">
+                <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-stone-800 dark:text-rose-50 line-clamp-2">
                   {song.title || 'Untitled Track'}
                 </h3>
                 <p
@@ -257,23 +269,16 @@ export default function SongBannerWidget({
                 </p>
               </div>
 
-              {/* ONLY GENRE (Removed duration & view counts as requested) */}
+              {/* Genre Pill */}
               <div className="flex items-center justify-center pt-1">
-                <span
-                  className="px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase border backdrop-blur-md shadow-xs"
-                  style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                    borderColor: 'rgba(255, 255, 255, 0.25)',
-                    color: accentColor,
-                  }}
-                >
+                <span className="px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase border bg-cream-100/80 border-cream-300 text-wine-800 dark:bg-white/10 dark:border-white/20 dark:text-rose-200 shadow-2xs">
                   {song.genre || 'Song of the Month'}
                 </span>
               </div>
 
               {/* Rating (Stars) / 10 — Locked unless user clicks Edit */}
               <div className="pt-2 flex flex-col items-center gap-2">
-                <div className="flex items-center justify-center gap-1.5">
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
                     <button
                       key={starIndex}
@@ -292,8 +297,8 @@ export default function SongBannerWidget({
                       <Star
                         className={`w-4 h-4 sm:w-5 sm:h-5 ${
                           starIndex <= displayRating
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                            : 'text-white/20 fill-white/5'
+                            ? 'text-amber-500 dark:text-amber-400 fill-amber-500 dark:fill-amber-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.35)]'
+                            : 'text-stone-300 dark:text-white/20 fill-stone-100 dark:fill-white/5'
                         }`}
                       />
                     </button>
@@ -301,7 +306,7 @@ export default function SongBannerWidget({
 
                   {/* Rating numerical badge with one decimal point */}
                   {isEditing ? (
-                    <div className="ml-3 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-lg border border-amber-400/40">
+                    <div className="ml-3 flex items-center gap-1.5 bg-cream-100 dark:bg-black/40 px-2.5 py-1 rounded-lg border border-wine-300 dark:border-amber-400/40">
                       <input
                         type="number"
                         step="0.1"
@@ -309,13 +314,13 @@ export default function SongBannerWidget({
                         max="10"
                         value={ratingInput}
                         onChange={handleRatingInputChange}
-                        className="w-12 bg-transparent text-sm sm:text-base font-mono font-bold text-amber-300 outline-none text-center"
+                        className="w-12 bg-transparent text-sm sm:text-base font-mono font-bold text-wine-800 dark:text-amber-300 outline-none text-center"
                         title="Edit decimal rating"
                       />
-                      <span className="font-mono text-xs text-white/50">/ 10</span>
+                      <span className="font-mono text-xs text-stone-400 dark:text-white/50">/ 10</span>
                     </div>
                   ) : (
-                    <span className="ml-3 font-mono text-sm sm:text-base font-bold text-amber-300">
+                    <span className="ml-3 font-mono text-sm sm:text-base font-bold text-wine-800 dark:text-amber-300">
                       {currentRating.toFixed(1)} / 10
                     </span>
                   )}
@@ -323,11 +328,11 @@ export default function SongBannerWidget({
 
                 {/* Edit hint indicator */}
                 {isEditing ? (
-                  <span className="text-[11px] text-amber-300/80 font-mono tracking-wide">
+                  <span className="text-[11px] text-wine-700 dark:text-amber-300/80 font-mono tracking-wide">
                     Click stars or type decimal to adjust • click Done to lock
                   </span>
                 ) : (
-                  <span className="text-[11px] text-white/35 font-mono flex items-center gap-1">
+                  <span className="text-[11px] text-stone-400 dark:text-white/35 font-mono flex items-center gap-1">
                     <Lock className="w-3 h-3" />
                     <span>Rating locked</span>
                   </span>
@@ -336,12 +341,12 @@ export default function SongBannerWidget({
             </div>
 
             {/* Bottom Actions Row: Link to platform & Remove button */}
-            <div className="relative z-10 mt-6 pt-5 border-t border-white/15 flex items-center justify-between">
+            <div className="relative z-10 mt-6 pt-5 border-t border-cream-200 dark:border-white/15 flex items-center justify-between">
               <a
                 href={song.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/70 hover:text-white transition-colors"
+                className="inline-flex items-center gap-2 text-xs sm:text-sm text-stone-500 hover:text-wine-800 dark:text-rose-200/70 dark:hover:text-white transition-colors"
               >
                 <span>Open in {song.platform === 'spotify' ? 'Spotify' : 'YouTube'}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -350,7 +355,7 @@ export default function SongBannerWidget({
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-red-500/20 text-white/50 hover:text-red-300 transition-colors cursor-pointer text-xs border border-transparent hover:border-red-400/30"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-red-500/10 text-stone-400 hover:text-red-600 dark:text-white/50 dark:hover:text-red-300 transition-colors cursor-pointer text-xs border border-transparent hover:border-red-400/30"
                 title="Remove logged song"
               >
                 <Trash2 className="w-4 h-4" />
@@ -363,31 +368,32 @@ export default function SongBannerWidget({
               BACK SIDE: Spotify-Style Soundwave Code + Reason for Choice
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-3xl p-7 sm:p-10 shadow-2xl border border-white/15 flex flex-col justify-between ${
+            className={`w-full absolute inset-0 rounded-3xl p-7 sm:p-10 border flex flex-col justify-between transition-colors duration-300 ${
               isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              color: primaryText,
+              boxShadow: cardShadow,
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
               minHeight: '800px',
             }}
           >
-            {/* Ambient texture / grid for blank sketchbook canvas */}
+            {/* Ambient dot grid texture */}
             <div
               className="absolute inset-0 opacity-15 pointer-events-none rounded-3xl"
               style={{
-                backgroundImage: `radial-gradient(circle at 2px 2px, ${accentColor} 1.5px, transparent 0)`,
+                backgroundImage: `radial-gradient(circle at 2px 2px, ${accentColor} 1.2px, transparent 0)`,
                 backgroundSize: '28px 28px',
               }}
             />
 
             {/* Back Side Top Bar: Section Title & Buttons (Edit/Done & Flip Back) */}
             <div className="flex items-center justify-between relative z-40 mb-3">
-              <span className="text-xs uppercase tracking-widest text-white/60 font-mono font-medium">
+              <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-rose-200/60 font-mono font-medium">
                 Song Reflection & Code
               </span>
 
@@ -396,10 +402,10 @@ export default function SongBannerWidget({
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-xs cursor-pointer ${
                     isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                      ? 'bg-wine-700 text-white hover:bg-wine-800 dark:bg-amber-400 dark:text-stone-900 dark:hover:bg-amber-300 ring-2 ring-wine-300 dark:ring-amber-300/60'
+                      : 'bg-cream-100 hover:bg-cream-200 border border-cream-300 text-stone-700 dark:bg-white/10 dark:hover:bg-white/20 dark:border-white/15 dark:text-rose-100'
                   }`}
                   title={isEditing ? 'Save and lock reflection' : 'Edit reflection and rating'}
                 >
@@ -423,7 +429,7 @@ export default function SongBannerWidget({
                     e.stopPropagation();
                     setIsFlipped(false);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 border border-white/30 transition-all text-xs font-semibold text-white cursor-pointer shadow-lg backdrop-blur-md relative z-50"
+                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cream-100 hover:bg-cream-200 border border-cream-300 text-wine-800 dark:bg-white/15 dark:hover:bg-white/25 dark:border-white/25 dark:text-white active:scale-95 transition-all text-xs font-semibold cursor-pointer shadow-xs relative z-50"
                   title="Click corner to flip back to front"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
@@ -436,10 +442,7 @@ export default function SongBannerWidget({
                 REAL SCANNABLE CODES (Spotify Code + QR)
                ======================================================== */}
             <div className="relative z-30 my-3 flex flex-col items-center gap-3">
-              <div
-                className="w-full max-w-md p-4 rounded-2xl border flex items-center gap-4 shadow-xl backdrop-blur-md"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)', borderColor: 'rgba(255, 255, 255, 0.15)' }}
-              >
+              <div className="w-full max-w-md p-4 rounded-2xl border border-cream-200 dark:border-[#3A2832] bg-[#FAF6F0] dark:bg-[#22181E] flex items-center gap-4 shadow-md">
                 {/* Spotify Code (official, scannable in the Spotify app) */}
                 <div className="flex-1 min-w-0 flex flex-col items-center justify-center">
                   {spotifyCodeUrl && !codeFailed ? (
@@ -453,32 +456,31 @@ export default function SongBannerWidget({
                     </a>
                   ) : (
                     <form onSubmit={handleAttachSpotify} className="w-full space-y-2">
-                      <p className="text-[11px] text-white/60 leading-snug">
+                      <p className="text-[11px] text-stone-500 dark:text-rose-200/60 leading-snug">
                         {codeFailed
                           ? 'Couldn’t load the Spotify Code. Try another Spotify link:'
                           : 'Paste this song’s Spotify link to generate its real Spotify Code:'}
                       </p>
-                      <div className="flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 p-1">
+                      <div className="flex items-center gap-1.5 rounded-full bg-white dark:bg-white/10 border border-cream-300 dark:border-white/20 p-1">
                         <input
                           type="url"
                           value={spotifyInput}
                           onChange={(e) => setSpotifyInput(e.target.value)}
                           placeholder="https://open.spotify.com/track/..."
-                          className="flex-1 min-w-0 bg-transparent px-3 py-1 text-xs text-white placeholder-white/35 outline-none"
+                          className="flex-1 min-w-0 bg-transparent px-3 py-1 text-xs text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-white/35 outline-none"
                         />
                         <button
                           type="submit"
                           disabled={!spotifyInput.trim()}
-                          className="px-3 py-1 rounded-full text-[11px] font-semibold text-[#1A1A1A] disabled:opacity-40 cursor-pointer"
-                          style={{ backgroundColor: accentColor }}
+                          className="px-3 py-1 rounded-full text-[11px] font-semibold bg-wine-700 text-white dark:bg-rose-300 dark:text-stone-900 disabled:opacity-40 cursor-pointer"
                         >
                           Generate
                         </button>
                       </div>
-                      {spotifyError && <p className="text-[11px] text-red-300">{spotifyError}</p>}
+                      {spotifyError && <p className="text-[11px] text-red-500 dark:text-red-300">{spotifyError}</p>}
                     </form>
                   )}
-                  <p className="mt-1.5 text-[10px] uppercase tracking-widest font-mono text-white/45 text-center">
+                  <p className="mt-1.5 text-[10px] uppercase tracking-widest font-mono text-stone-400 dark:text-white/45 text-center">
                     {spotifyCodeUrl && !codeFailed ? 'Spotify app → Search → camera icon' : 'Spotify Code'}
                   </p>
                 </div>
@@ -491,8 +493,12 @@ export default function SongBannerWidget({
                   className="shrink-0 flex flex-col items-center"
                   title="Scan with your phone camera"
                 >
-                  <img src={qrCodeUrl} alt="QR code for this song" className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl bg-white" />
-                  <span className="mt-1.5 text-[10px] uppercase tracking-widest font-mono text-white/45">
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR code for this song"
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border border-cream-200 dark:border-[#3A2832]"
+                  />
+                  <span className="mt-1.5 text-[10px] uppercase tracking-widest font-mono text-stone-400 dark:text-white/45">
                     {song.platform === 'spotify' ? 'Spotify' : 'YouTube'} QR
                   </span>
                 </a>
@@ -504,21 +510,21 @@ export default function SongBannerWidget({
                ======================================================== */}
             <div className="relative z-30 my-4 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-2 px-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-white/80 flex items-center gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-rose-100/85 flex items-center gap-2">
                   <span>Reason for this choice</span>
                   {isEditing ? (
-                    <span className="text-[11px] text-amber-300/80 font-normal lowercase">
+                    <span className="text-[11px] text-wine-700 dark:text-amber-300/80 font-normal lowercase">
                       (editing mode)
                     </span>
                   ) : (
-                    <span className="text-[11px] text-white/40 font-normal lowercase flex items-center gap-1">
+                    <span className="text-[11px] text-stone-400 dark:text-white/40 font-normal lowercase flex items-center gap-1">
                       <Lock className="w-3 h-3" />
                       <span>locked • click Edit above to change</span>
                     </span>
                   )}
                 </label>
                 {isSaved && (
-                  <span className="text-[11px] text-emerald-300 font-mono flex items-center gap-1 animate-in fade-in">
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-300 font-mono flex items-center gap-1 animate-in fade-in">
                     <Check className="w-3.5 h-3.5" />
                     <span>Saved ♡</span>
                   </span>
@@ -529,8 +535,8 @@ export default function SongBannerWidget({
               <div
                 className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
                   isEditing
-                    ? 'border-amber-300/50 focus-within:border-amber-300 bg-black/40 ring-1 ring-amber-300/20'
-                    : 'border-white/15 bg-black/25'
+                    ? 'border-wine-400 dark:border-amber-300/50 bg-[#FAF6F0] dark:bg-black/40 ring-1 ring-wine-300/40 dark:ring-amber-300/20'
+                    : 'border-cream-200 dark:border-white/15 bg-[#FAF6F0]/80 dark:bg-black/25'
                 }`}
               >
                 {isEditing ? (
@@ -538,41 +544,41 @@ export default function SongBannerWidget({
                     value={reasonText}
                     onChange={handleReasonChange}
                     placeholder="Why did you choose this song for this month? Write down the memories, lyrics, feelings, or story behind it..."
-                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-white placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed"
+                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed"
                   />
                 ) : (
                   <div
                     onClick={onToggleEdit}
-                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-white/90 font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
+                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-700 dark:text-white/90 font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
                     title="Click Edit to modify"
                   >
                     {reasonText.trim() ? (
                       reasonText
                     ) : (
-                      <span className="text-white/35 italic">
+                      <span className="text-stone-400 dark:text-white/35 italic">
                         No reflection written yet. Click &quot;Edit&quot; above to add your thoughts...
                       </span>
                     )}
                   </div>
                 )}
-                <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-white/30">
+                <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-stone-400 dark:text-white/30">
                   {reasonText.length} characters
                 </div>
               </div>
             </div>
 
             {/* Back Side Bottom Bar: Quick Flip Back & Couple Watermark */}
-            <div className="relative z-40 pt-4 border-t border-white/15 flex items-center justify-between text-xs text-white/60">
+            <div className="relative z-40 pt-4 border-t border-cream-200 dark:border-white/15 flex items-center justify-between text-xs text-stone-500 dark:text-white/60">
               <button
                 type="button"
                 onClick={() => setIsFlipped(false)}
-                className="hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+                className="hover:text-wine-800 dark:hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
               >
                 <Repeat className="w-3.5 h-3.5" />
                 <span>Return to song player</span>
               </button>
 
-              <span className="font-serif italic text-white/40">
+              <span className="font-serif italic text-stone-400 dark:text-white/40">
                 Ever, Together ♡ Google & Nami
               </span>
             </div>
@@ -589,41 +595,37 @@ export default function SongBannerWidget({
           onClick={() => setIsConfirmingDelete(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl p-6 sm:p-7 shadow-2xl border border-white/20 text-center animate-in zoom-in-95 duration-200 space-y-4"
+            className="w-full max-w-sm rounded-3xl p-6 sm:p-7 shadow-2xl border text-center animate-in zoom-in-95 duration-200 space-y-4"
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 25px 60px -10px rgba(0,0,0,0.7), 0 0 35px -5px ${accentColor}33`,
+              backgroundColor: cardBg,
+              borderColor: cardBorder,
+              color: primaryText,
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Warning Icon without circular box */}
-            <div className="flex justify-center text-red-400">
+            <div className="flex justify-center text-red-500 dark:text-red-400">
               <AlertTriangle className="w-8 h-8 stroke-[1.75]" />
             </div>
 
-            {/* Modal Heading & Description */}
             <div className="space-y-1.5">
-              <h4 className="font-serif text-xl font-bold tracking-tight text-white">
+              <h4 className="font-serif text-xl font-bold tracking-tight text-stone-800 dark:text-white">
                 Remove this song?
               </h4>
-              <p className="text-xs sm:text-sm text-white/70 leading-relaxed px-2">
+              <p className="text-xs sm:text-sm text-stone-500 dark:text-white/70 leading-relaxed px-2">
                 This will delete the logged track, its rating, and your memories for this month.
               </p>
             </div>
 
-            {/* Song Preview Pill */}
-            <div className="py-2 px-3 rounded-xl bg-black/30 border border-white/10 text-xs text-white/80 truncate">
-              <span className="font-medium text-white">{song.title || 'Logged Song'}</span>
-              {song.artist && <span className="text-white/50"> • {song.artist}</span>}
+            <div className="py-2 px-3 rounded-xl bg-cream-100 dark:bg-black/30 border border-cream-200 dark:border-white/10 text-xs text-stone-700 dark:text-white/80 truncate">
+              <span className="font-medium text-stone-900 dark:text-white">{song.title || 'Logged Song'}</span>
+              {song.artist && <span className="text-stone-500 dark:text-white/50"> • {song.artist}</span>}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex items-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(false)}
-                className="flex-1 py-2.5 px-4 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all border border-white/15 cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-full bg-cream-100 hover:bg-cream-200 dark:bg-white/15 dark:hover:bg-white/25 active:scale-95 text-stone-700 dark:text-white text-xs sm:text-sm font-semibold transition-all border border-cream-300 dark:border-white/15 cursor-pointer"
               >
                 Cancel
               </button>

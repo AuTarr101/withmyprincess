@@ -17,8 +17,9 @@ import {
   Check,
   Lock,
   AlertTriangle,
-  MapPin,
-  Heart,
+  Sun,
+  Moon,
+  Play,
 } from 'lucide-react';
 
 interface MemoryBannerWidgetProps {
@@ -28,9 +29,9 @@ interface MemoryBannerWidgetProps {
   year: number;
   isEditing: boolean;
   onToggleEdit: () => void;
+  isDarkroom: boolean;
+  onToggleDarkroom: () => void;
 }
-
-const WASHI_STYLES: Array<'rose' | 'gold' | 'sage'> = ['rose', 'gold', 'sage'];
 
 export default function MemoryBannerWidget({
   memory,
@@ -39,11 +40,19 @@ export default function MemoryBannerWidget({
   year,
   isEditing,
   onToggleEdit,
+  isDarkroom,
+  onToggleDarkroom,
 }: MemoryBannerWidgetProps) {
   const { deleteMonthMemory, updateMonthMemoryDetails } = useApp();
 
   // 3D Flip state
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // Minimal twist: Silver-Gelatin B&W vs Color film print toggle
+  const [isMonochrome, setIsMonochrome] = useState(false);
+
+  // Video playback toggle if the memory URL is a YouTube video
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Rating state (1 decimal)
   const [ratingInput, setRatingInput] = useState<string>((memory.rating ?? 10.0).toFixed(1));
@@ -77,17 +86,14 @@ export default function MemoryBannerWidget({
     setGeotagUrlInput(memory.geotagUrl || '');
   }, [memory.title, memory.location, memory.genre, memory.geotagUrl]);
 
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [memory.url]);
+
   const triggerSavedBadge = () => {
     setIsSaved(true);
     const timer = setTimeout(() => setIsSaved(false), 2000);
     return () => clearTimeout(timer);
-  };
-
-  const handleCycleWashi = () => {
-    const current = memory.washiStyle || 'rose';
-    const next = WASHI_STYLES[(WASHI_STYLES.indexOf(current) + 1) % WASHI_STYLES.length];
-    updateMonthMemoryDetails(monthId, { washiStyle: next });
-    triggerSavedBadge();
   };
 
   const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -114,7 +120,7 @@ export default function MemoryBannerWidget({
 
   const handleDetailBlur = () => {
     updateMonthMemoryDetails(monthId, {
-      title: titleInput.trim() || 'Our favorite moment ♡',
+      title: titleInput.trim() || 'Untitled Memory',
       location: locationInput.trim() || `${monthName} ${year}`,
       genre: genreInput.trim() || 'Core Memory',
       geotagUrl: geotagUrlInput.trim() || undefined,
@@ -123,73 +129,128 @@ export default function MemoryBannerWidget({
   };
 
   const parsed = parseMusicUrl(memory.url);
+  const videoEmbed =
+    parsed.platform === 'youtube' && parsed.embedUrl
+      ? `${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}autoplay=1`
+      : null;
 
-  const canvasBg = memory.canvasColor || '#1B2420';
-  const accentColor = memory.accentColor || '#A7E8BD';
+  const photoImage = memory.thumbnailUrl || memory.url;
+  const printTitle = memory.title || 'Untitled Memory';
+  const shortMonthYear = `${monthName.slice(0, 3).toUpperCase()} ${year}`;
+
+  // Archival Contact Print Palette (matches Movie's cream paper by day, charcoal print in darkroom)
+  const paperBg = isDarkroom ? '#15120F' : '#ECE9E2';
+  const inkColor = isDarkroom ? '#F1ECE2' : '#1E1B18';
+  const mutedInk = isDarkroom ? '#8F877C' : '#7A756F';
+  const ruleColor = isDarkroom ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
 
   const currentRating = memory.rating ?? 10.0;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
 
   const targetQrUrl = memory.geotagUrl?.trim() || memory.url;
-  const qrCodeUrl = getQrCodeImageUrl(targetQrUrl, '18181B', 'FFFFFF', 240);
+  const qrCodeUrl = getQrCodeImageUrl(
+    targetQrUrl,
+    inkColor.replace('#', ''),
+    paperBg.replace('#', ''),
+    280
+  );
 
-  const washiStyle = memory.washiStyle || 'rose';
-  const washiVisual =
-    washiStyle === 'gold'
-      ? 'bg-gradient-to-r from-amber-200/85 via-yellow-100/90 to-amber-300/85 border-amber-400/50 text-amber-900'
-      : washiStyle === 'sage'
-      ? 'bg-gradient-to-r from-emerald-200/85 via-teal-100/90 to-emerald-300/85 border-emerald-400/50 text-emerald-900'
-      : 'bg-gradient-to-r from-rose-200/85 via-pink-100/90 to-rose-300/85 border-rose-400/50 text-rose-900';
+  // Shared minimal pill styling (matching MovieBannerWidget)
+  const pillBase =
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all cursor-pointer border active:scale-95';
+  const pillIdle = isDarkroom
+    ? 'border-white/15 text-[#F1ECE2]/80 hover:text-[#F1ECE2] hover:bg-white/10'
+    : 'border-black/10 text-[#1E1B18]/70 hover:text-[#1E1B18] hover:bg-black/5';
+
+  const editField =
+    'w-full bg-transparent outline-none border-b border-dashed pb-0.5 placeholder:opacity-40 focus:border-solid';
 
   return (
-    <div className="w-full max-w-2xl sm:max-w-3xl mx-auto py-2">
+    <div className="w-full max-w-xl mx-auto py-2">
       {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2000px] select-none"
-        style={{ minHeight: '850px' }}
+        style={{ minHeight: '820px' }}
       >
         <div
-          className="w-full relative rounded-3xl"
+          className="w-full relative rounded-md"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             transition: 'transform 0.75s cubic-bezier(0.4, 0.0, 0.2, 1)',
-            minHeight: '850px',
+            minHeight: '820px',
           }}
         >
           {/* ========================================================
-              FRONT SIDE: Washi-Taped Polaroid & Handwritten Caption
+              FRONT SIDE: Minimalist Archival Contact Print
              ======================================================== */}
           <div
-            className={`w-full rounded-3xl p-7 sm:p-10 shadow-2xl relative border border-white/15 flex flex-col justify-between ${
+            className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDarkroom
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
-              minHeight: '850px',
+              minHeight: '820px',
             }}
           >
-            {/* Top Bar: Location Stamp & Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2 relative z-20 mb-2">
-              <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-xs font-medium text-white/90 backdrop-blur-md">
-                <MapPin className="w-3.5 h-3.5 text-rose-300 shrink-0" />
-                <span>{memory.location || `${monthName} ${year}`}</span>
+            {/* Top Bar: Darkroom · B&W/Color Twist · Edit/Done · Flip Postcard */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={onToggleDarkroom}
+                  className={`${pillBase} ${
+                    isDarkroom ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
+                  }`}
+                  title={isDarkroom ? 'Switch to daylight archival paper' : 'Switch to midnight darkroom print'}
+                >
+                  {isDarkroom ? (
+                    <>
+                      <Sun className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Daylight</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-3.5 h-3.5" />
+                      <span>Darkroom</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Minimal Photography Twist: Silver-Gelatin B&W vs Color toggle */}
+                <button
+                  type="button"
+                  onClick={() => setIsMonochrome(!isMonochrome)}
+                  className={`${pillBase} ${
+                    isMonochrome
+                      ? isDarkroom
+                        ? 'bg-white/15 border-white/30 text-white'
+                        : 'bg-black/10 border-black/25 text-black'
+                      : pillIdle
+                  }`}
+                  title="Toggle Silver-Gelatin B&W or Color film stock"
+                >
+                  <span className="font-mono text-[10px] uppercase tracking-wider">
+                    {isMonochrome ? 'B&W 400' : 'Color'}
+                  </span>
+                </button>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
-                    isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
+                  title={isEditing ? 'Save and lock edits' : 'Edit memory details and rating'}
                 >
                   {isEditing ? (
                     <>
@@ -208,245 +269,315 @@ export default function MemoryBannerWidget({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsPlaying(false);
                     setIsFlipped(true);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 border border-white/20 transition-all text-xs font-semibold text-white/90 hover:text-white cursor-pointer shadow-md backdrop-blur-md"
-                  title="Flip Polaroid over to read love letter"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip to view Archival Postcard & Keepsake Note"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Turn Photo Over</span>
+                  <span>Flip Print</span>
                 </button>
               </div>
             </div>
 
             {/* ========================================================
-                1. REALISTIC 3D POLAROID FRAME WITH WASHI TAPE
+                MINIMAL TWIST: 35MM CONTACT SHEET INDEX BAR ABOVE PHOTO
                ======================================================== */}
-            <div className="relative z-10 w-full my-3 flex justify-center">
-              <div className="w-full max-w-md relative pt-4 px-4 pb-7 rounded-xl bg-[#FAF6F0] text-[#332426] shadow-[0_25px_60px_rgba(0,0,0,0.65)] border border-[#EDE4D7] transition-transform duration-300 hover:rotate-[0.5deg]">
-                {/* Interactive Washi Tape Strip at Top Center */}
-                <button
-                  type="button"
-                  onClick={handleCycleWashi}
-                  className={`absolute -top-3.5 left-1/2 -translate-x-1/2 -rotate-2 z-30 w-36 h-7 px-3 flex items-center justify-center text-[10px] font-mono font-bold tracking-widest uppercase border shadow-sm backdrop-blur-xs cursor-pointer transition-all hover:scale-105 ${washiVisual}`}
-                  title="Click to change Washi Tape pattern!"
-                >
-                  <span>
-                    {washiStyle === 'gold'
-                      ? '✦ STARLIGHT ♡'
-                      : washiStyle === 'sage'
-                      ? '🌿 BOTANICAL ♡'
-                      : '🌸 ROSE TAPE ♡'}
-                  </span>
-                </button>
+            <div
+              className="flex items-center justify-between py-1.5 px-1 border-t font-mono text-[10px] tracking-[0.2em] uppercase"
+              style={{ borderColor: ruleColor, color: mutedInk }}
+            >
+              <span>ARCHIVE N° {monthId}</span>
+              <span>35MM · FRAME 24A ▸</span>
+              <span>I &amp; II</span>
+            </div>
 
-                {/* Inner Polaroid Snapshot */}
-                <div className="w-full aspect-[4/3] rounded-md overflow-hidden bg-stone-900 shadow-inner border border-stone-300 relative">
-                  {parsed.platform === 'youtube' && parsed.embedUrl ? (
-                    <iframe
-                      src={parsed.embedUrl}
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                      className="w-full h-full"
-                      title={memory.title || 'Memory Video'}
-                    />
-                  ) : memory.thumbnailUrl || memory.url ? (
+            {/* ========================================================
+                1. ARCHIVAL PHOTOGRAPH WITH MINIMAL REGISTRATION MARKS
+               ======================================================== */}
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/85 group">
+              {isPlaying && videoEmbed ? (
+                <iframe
+                  src={videoEmbed}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                  title={printTitle}
+                />
+              ) : (
+                <>
+                  {photoImage ? (
                     <img
-                      src={memory.thumbnailUrl || memory.url}
-                      alt={memory.title || 'Polaroid Memory'}
-                      className="w-full h-full object-cover"
+                      src={photoImage}
+                      alt={printTitle}
+                      className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-[1.02] ${
+                        isMonochrome ? 'grayscale contrast-110' : ''
+                      }`}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/40">
-                      <Camera className="w-16 h-16" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Camera className="w-14 h-14 text-white/30" />
                     </div>
                   )}
-                </div>
 
-                {/* Classic Thick Polaroid Chin with Handwritten Marker Caption */}
-                <div className="mt-4 pt-1 text-center px-2">
+                  {videoEmbed ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlaying(true)}
+                      className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                      title="Play memory video"
+                    >
+                      <span className="w-14 h-14 rounded-full bg-white/85 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-[#1E1B18] fill-[#1E1B18] ml-0.5" />
+                      </span>
+                    </button>
+                  ) : (
+                    <a
+                      href={targetQrUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
+                        Open Full Photograph ↗
+                      </span>
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Bottom Contact-Sheet Rule with Subtle Date Stamp */}
+            <div
+              className="flex items-center justify-between py-1.5 px-1 border-b font-mono text-[10px] tracking-[0.18em] uppercase"
+              style={{ borderColor: ruleColor, color: mutedInk }}
+            >
+              <span>FIG. 01 — {(memory.location || `${monthName} ${year}`).toUpperCase()}</span>
+              <span>{isMonochrome ? 'SILVER GELATIN' : 'ARCHIVAL CHROMOGENIC'}</span>
+            </div>
+
+            {/* ========================================================
+                2. TITLE + MONTH/YEAR STAMP (Mirrors Movie Poster Typography)
+               ======================================================== */}
+            <div className="mt-5">
+              {isEditing ? (
+                <div className="flex items-end gap-3">
+                  <input
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onBlur={handleDetailBlur}
+                    placeholder="MEMORY TITLE"
+                    className={`${editField} font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
+                  />
+                  <span
+                    className="font-poster text-lg sm:text-xl shrink-0 pb-0.5"
+                    style={{ color: mutedInk }}
+                  >
+                    {shortMonthYear}
+                  </span>
+                </div>
+              ) : (
+                <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl">
+                  {printTitle}
+                  <span
+                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2.5 align-baseline"
+                    style={{ color: isDarkroom ? '#BDB4A8' : '#4A4540' }}
+                  >
+                    {shortMonthYear}
+                  </span>
+                </h3>
+              )}
+            </div>
+
+            {/* ========================================================
+                3. SWISS-GRID METADATA ROWS: location · mood · archive · kept
+               ======================================================== */}
+            <div className="mt-4 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide">
+              {[
+                {
+                  label: 'location',
+                  value: memory.location || `${monthName} ${year}`,
+                  input: locationInput,
+                  setInput: setLocationInput,
+                  placeholder: 'TOKYO / BANGKOK / PARIS',
+                },
+                {
+                  label: 'mood / vibe',
+                  value: memory.genre || 'Core Memory',
+                  input: genreInput,
+                  setInput: setGenreInput,
+                  placeholder: 'LATE NIGHT WALK / GOLDEN HOUR',
+                },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
+                >
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    {row.label}
+                  </span>
                   {isEditing ? (
                     <input
                       type="text"
-                      value={titleInput}
-                      onChange={(e) => setTitleInput(e.target.value)}
+                      value={row.input}
+                      onChange={(e) => row.setInput(e.target.value)}
                       onBlur={handleDetailBlur}
-                      placeholder="Write Polaroid marker caption..."
-                      className="w-full bg-amber-50/80 text-center font-serif italic text-lg sm:text-xl font-semibold text-[#332426] border-b border-amber-500/60 outline-none py-1 rounded"
+                      placeholder={row.placeholder}
+                      className={`${editField} uppercase`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
                     />
                   ) : (
-                    <p className="font-serif italic text-lg sm:text-xl font-semibold text-[#332426] leading-snug">
-                      “{memory.title || 'A moment we want to keep forever ♡'}”
-                    </p>
+                    <span className="uppercase font-normal truncate">{row.value}</span>
                   )}
                 </div>
-              </div>
-            </div>
+              ))}
 
-            {/* ========================================================
-                2. MEMORY DETAILS: Date/Location, ONLY Vibe Badge, Emotional Weight
-               ======================================================== */}
-            <div className="relative z-10 text-center space-y-3 my-2">
-              {isEditing ? (
-                <div className="max-w-md mx-auto space-y-2 bg-black/30 p-3 rounded-2xl border border-amber-400/30">
-                  <input
-                    type="text"
-                    value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Location & Date (e.g. Tokyo • October 14, 2026)"
-                    className="w-full bg-transparent text-center text-sm sm:text-base font-medium outline-none border-b border-white/15 pb-1"
-                    style={{ color: accentColor }}
-                  />
-                  <input
-                    type="text"
-                    value={genreInput}
-                    onChange={(e) => setGenreInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Vibe / Emotion (e.g. Late Night Walk)"
-                    className="w-full bg-transparent text-center text-xs uppercase tracking-widest text-amber-200 outline-none pt-0.5"
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p
-                    className="font-medium text-sm sm:text-base tracking-widest uppercase"
-                    style={{ color: accentColor }}
-                  >
-                    {memory.location || `${monthName} ${year}`}
-                  </p>
-                  <div className="flex items-center justify-center">
-                    <span
-                      className="px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase border backdrop-blur-md shadow-xs"
-                      style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.14)',
-                        borderColor: 'rgba(255, 255, 255, 0.25)',
-                        color: accentColor,
-                      }}
-                    >
-                      {memory.genre || 'Core Memory'}
+              {/* Static archival date row */}
+              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
+                <span className="font-light lowercase" style={{ color: mutedInk }}>
+                  catalogued
+                </span>
+                <span className="uppercase font-normal truncate">
+                  {monthName} {year} · NEGATIVE N° 24A
+                </span>
+              </div>
+
+              {/* Minimal rating row (locked unless editing) */}
+              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-center">
+                <span className="font-light lowercase" style={{ color: mutedInk }}>
+                  core index
+                </span>
+                {isEditing ? (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
+                      <button
+                        key={starIndex}
+                        type="button"
+                        onClick={() => handleStarClick(starIndex)}
+                        onMouseEnter={() => setHoverRating(starIndex)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-0.5 hover:scale-125 transition-transform cursor-pointer"
+                        title={`Rate ${starIndex}/10`}
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            starIndex <= displayRating
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'opacity-25'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={ratingInput}
+                      onChange={handleRatingInputChange}
+                      className={`${editField} w-12 ml-1 text-center font-mono text-xs`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                      title="Edit decimal rating"
+                    />
+                    <span className="text-xs" style={{ color: mutedInk }}>
+                      / 10
                     </span>
                   </div>
-                </div>
-              )}
-
-              {/* ♡ Emotional Weight Rating (1-decimal precision) */}
-              <div className="pt-1 flex flex-col items-center gap-1.5">
-                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                  <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400 fill-rose-400 mr-1" />
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
-                    <button
-                      key={starIndex}
-                      type="button"
-                      disabled={!isEditing}
-                      onClick={() => handleStarClick(starIndex)}
-                      onMouseEnter={() => isEditing && setHoverRating(starIndex)}
-                      onMouseLeave={() => isEditing && setHoverRating(null)}
-                      className={`p-1 transition-transform ${
-                        isEditing ? 'hover:scale-125 cursor-pointer' : 'cursor-default opacity-95'
-                      }`}
-                    >
-                      <Star
-                        className={`w-4 h-4 sm:w-5 sm:h-5 ${
-                          starIndex <= displayRating
-                            ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]'
-                            : 'text-white/20 fill-white/5'
-                        }`}
-                      />
-                    </button>
-                  ))}
-
-                  {isEditing ? (
-                    <div className="ml-2 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-lg border border-amber-400/40">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="10"
-                        value={ratingInput}
-                        onChange={handleRatingInputChange}
-                        className="w-12 bg-transparent text-sm sm:text-base font-mono font-bold text-amber-300 outline-none text-center"
-                      />
-                      <span className="font-mono text-xs text-white/50">/ 10</span>
-                    </div>
-                  ) : (
-                    <span className="ml-2 font-mono text-sm sm:text-base font-bold text-amber-300">
-                      {currentRating.toFixed(1)} / 10
-                    </span>
-                  )}
-                </div>
-
-                {isEditing ? (
-                  <span className="text-[11px] text-amber-300/80 font-mono tracking-wide">
-                    Click stars or type decimal to adjust • click Done to lock
-                  </span>
                 ) : (
-                  <span className="text-[11px] text-white/35 font-mono flex items-center gap-1">
-                    <Lock className="w-3 h-3" />
-                    <span>Emotional weight locked</span>
+                  <span className="uppercase flex items-center gap-1.5">
+                    <span>♡ {currentRating.toFixed(1)} / 10</span>
+                    <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Bottom Actions Row */}
-            <div className="relative z-10 mt-4 pt-4 border-t border-white/15 flex items-center justify-between">
-              <a
-                href={targetQrUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs sm:text-sm text-white/70 hover:text-white transition-colors"
-              >
-                <span>Open Full Photo / Map Pin</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+            {/* ========================================================
+                4. CAPTURED WITH (mirrors Movie's "starring" line)
+               ======================================================== */}
+            <div className="mt-5 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
+              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
+                subjects
+              </span>
+              <span className="uppercase tracking-wider">GOOGLE &nbsp;·&nbsp; NAMI</span>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setIsConfirmingDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-red-500/20 text-white/50 hover:text-red-300 transition-colors cursor-pointer text-xs border border-transparent hover:border-red-400/30"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Remove</span>
-              </button>
+            {/* Footer: couple print stamp · open link · remove */}
+            <div
+              className="mt-auto pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={targetQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full hover:opacity-100 opacity-80 transition-opacity"
+                  title="Open full photo or location pin"
+                >
+                  <span>Original File</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Remove logged memory"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* ========================================================
-              BACK SIDE: Classic Dark Polaroid Carbon Back & Love Letter
+              BACK SIDE: Minimal Archival Postcard Stub + Field Notes
+              (same paper, ink & condensed type as the front)
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-3xl p-7 sm:p-10 shadow-2xl border border-white/15 flex flex-col justify-between ${
+            className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
             }`}
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 30px 70px -15px ${canvasBg}cc, 0 0 50px -10px ${accentColor}44`,
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDarkroom
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              minHeight: '850px',
+              minHeight: '820px',
             }}
           >
-            {/* Back Top Bar */}
-            <div className="flex items-center justify-between relative z-40 mb-2">
-              <span className="text-xs uppercase tracking-widest text-white/60 font-mono font-medium">
-                Polaroid Carbon Back & Keepsake Letter
+            {/* Top Bar: section label · Edit/Done · Flip Back */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <span
+                className="font-mono text-[11px] tracking-widest uppercase"
+                style={{ color: mutedInk }}
+              >
+                Archival Postcard &amp; Field Notes
               </span>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md backdrop-blur-md cursor-pointer ${
-                    isEditing
-                      ? 'bg-amber-400 text-stone-900 hover:bg-amber-300 ring-2 ring-amber-300/60'
-                      : 'bg-white/15 hover:bg-white/25 border border-white/20 text-white/90 hover:text-white'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
+                  title={isEditing ? 'Save and lock notes' : 'Edit notes and geotag link'}
                 >
                   {isEditing ? (
                     <>
@@ -467,7 +598,8 @@ export default function MemoryBannerWidget({
                     e.stopPropagation();
                     setIsFlipped(false);
                   }}
-                  className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 border border-white/30 transition-all text-xs font-semibold text-white cursor-pointer shadow-lg backdrop-blur-md relative z-50"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip back to the photograph"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
                   <span>Flip Back</span>
@@ -476,178 +608,204 @@ export default function MemoryBannerWidget({
             </div>
 
             {/* ========================================================
-                THE ARTIFACT: DARK CARBON POLAROID BACKING + GEOTAG QR
+                1. HEADLINE (mirrors Movie's "Admit Two · Google & Nami")
                ======================================================== */}
-            <div className="relative z-30 my-2 flex flex-col items-center">
-              <div className="w-full max-w-lg rounded-2xl bg-[#18181B] border-2 border-[#3F3F46] p-5 shadow-2xl flex items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <span className="inline-block px-2.5 py-0.5 rounded bg-white/10 text-[10px] font-mono font-bold tracking-widest uppercase text-zinc-300 border border-white/15">
-                    POLAROID 600 — {monthId}
-                  </span>
-                  <h4 className="font-serif italic text-base sm:text-lg text-zinc-100">
-                    “{memory.title || 'Our favorite moment ♡'}”
-                  </h4>
-                  <p className="text-xs font-mono text-zinc-400 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-rose-400" />
-                    <span>{memory.location || `${monthName} ${year}`}</span>
-                  </p>
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">
-                    DEVELOPED BY GOOGLE & NAMI ♡
-                  </p>
-                </div>
+            <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
+              Time Capsule
+              <span
+                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2.5"
+                style={{ color: isDarkroom ? '#BDB4A8' : '#4A4540' }}
+              >
+                Google &amp; Nami
+              </span>
+            </h3>
 
-                {/* Scannable Geotag Map Pin QR */}
+            {/* ========================================================
+                2. MINIMAL ARCHIVAL STUB: metadata rows + tear-off Geotag QR
+               ======================================================== */}
+            <div
+              className="mt-5 flex flex-col sm:flex-row border"
+              style={{ borderColor: ruleColor }}
+            >
+              <div
+                className="flex-1 p-4 sm:p-5 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide border-b sm:border-b-0 sm:border-r border-dashed"
+                style={{ borderColor: ruleColor }}
+              >
+                {[
+                  { label: 'moment', value: printTitle },
+                  { label: 'location', value: memory.location || `${monthName} ${year}` },
+                  { label: 'mood', value: memory.genre || 'Core Memory' },
+                  { label: 'frame', value: `Roll ${year} · Frame 24A` },
+                  { label: 'core index', value: `♡ ${currentRating.toFixed(1)} / 10` },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
+                  >
+                    <span className="font-light lowercase" style={{ color: mutedInk }}>
+                      {row.label}
+                    </span>
+                    <span className="uppercase truncate">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tear-off Geotag QR stub */}
+              <div className="sm:w-36 p-4 flex flex-col items-center justify-center gap-1.5 shrink-0">
                 <a
                   href={targetQrUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="shrink-0 flex flex-col items-center p-2 rounded-xl bg-zinc-900 border border-zinc-700 hover:scale-105 transition-transform"
-                  title="Scan or click to open Geotag / Memory Photo"
+                  className="hover:opacity-80 transition-opacity"
+                  title="Scan or click to open Geotag Map Pin / Original Photo"
                 >
-                  <img src={qrCodeUrl} alt="Geotag QR" className="w-20 h-20 rounded-lg bg-white p-1" />
-                  <span className="mt-1 text-[9px] font-mono uppercase tracking-widest text-zinc-400">
-                    GEOTAG QR
-                  </span>
+                  <img src={qrCodeUrl} alt="Geotag QR code" className="w-20 h-20" />
                 </a>
+                <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: mutedInk }}>
+                  PIN #{monthId.replace('-', '')}
+                </span>
               </div>
-
-              {isEditing && (
-                <div className="w-full max-w-lg mt-2 flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-xl border border-amber-300/30 text-xs">
-                  <span className="text-amber-200/80 font-mono whitespace-nowrap">Geotag Pin URL:</span>
-                  <input
-                    type="url"
-                    value={geotagUrlInput}
-                    onChange={(e) => setGeotagUrlInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Optional: Paste Google Maps location pin link..."
-                    className="flex-1 bg-transparent text-white placeholder-white/35 outline-none text-xs"
-                  />
-                </div>
-              )}
             </div>
 
+            {/* Optional Geotag / Google Maps link while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  geotag link
+                </span>
+                <input
+                  type="url"
+                  value={geotagUrlInput}
+                  onChange={(e) => setGeotagUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: Google Maps pin or original photo URL for the QR..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
+
             {/* ========================================================
-                FOLDED LOVE LETTER KEEPSAKE: "If we could pause time..."
+                3. KEEPSAKE LETTER: "If we could pause time..."
                ======================================================== */}
-            <div className="relative z-30 my-3 flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <label className="text-xs font-semibold uppercase tracking-wider text-white/85 flex items-center gap-2 flex-wrap">
-                  <span>If we could pause time in this exact second, would we?</span>
-                  {isEditing ? (
-                    <span className="text-[11px] text-amber-300/80 font-normal lowercase">
-                      (editing mode)
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-white/40 font-normal lowercase flex items-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      <span>locked • click Edit above to change</span>
-                    </span>
-                  )}
-                </label>
-                {isSaved && (
-                  <span className="text-[11px] text-emerald-300 font-mono flex items-center gap-1 animate-in fade-in">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Saved ♡</span>
+            <div className="mt-6 flex-1 flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
+                <span>
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    field notes
                   </span>
+                  <span className="uppercase ml-3">If we could pause time in this exact second</span>
+                </span>
+                {isSaved ? (
+                  <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
+                    <Check className="w-3 h-3" />
+                    Saved ♡
+                  </span>
+                ) : (
+                  !isEditing && <Lock className="w-3 h-3 opacity-30 shrink-0" />
                 )}
               </div>
 
-              {/* Folded Stationery Love Letter Note Area */}
-              <div
-                className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
-                  isEditing
-                    ? 'border-amber-300/60 bg-[#FAF6F0] text-[#332426] ring-2 ring-amber-300/30'
-                    : 'border-[#E6DAC8] bg-[#FAF6F0]/95 text-[#332426]'
-                } shadow-inner`}
-              >
-                {/* Subtle Fold Crease Line Across the Middle of the Letter */}
-                <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-[#D8C8B4]/70 pointer-events-none" />
-
+              <div className="flex-1 relative border" style={{ borderColor: ruleColor }}>
                 {isEditing ? (
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Write a love note on the back of this Polaroid—what did the air feel like, what did we say, and why will we never forget it?"
-                    className="w-full h-full min-h-[210px] p-5 text-sm sm:text-base text-[#332426] placeholder-stone-400 bg-transparent outline-none resize-none font-serif italic leading-relaxed relative z-10"
+                    placeholder="What did the air feel like, what were we talking about, and why will we never forget this moment?"
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
+                    style={{ color: inkColor }}
                   />
                 ) : (
                   <div
                     onClick={onToggleEdit}
-                    className="w-full h-full min-h-[210px] p-5 text-sm sm:text-base text-[#332426] font-serif italic leading-relaxed whitespace-pre-wrap cursor-pointer relative z-10"
-                    title="Click Edit to modify"
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
+                    title="Click to edit"
                   >
                     {reasonText.trim() ? (
                       reasonText
                     ) : (
-                      <span className="text-stone-400 italic">
-                        No letter written on the back yet. Click &quot;Edit&quot; above to write your keepsake note...
+                      <span className="italic" style={{ color: mutedInk }}>
+                        No field notes yet. Click Edit to write down the story behind this photograph...
                       </span>
                     )}
                   </div>
                 )}
-                <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-stone-400 z-10">
-                  {reasonText.length} characters
-                </div>
+                <span
+                  className="absolute bottom-2 right-3 pointer-events-none font-mono text-[10px]"
+                  style={{ color: mutedInk }}
+                >
+                  {reasonText.length}
+                </span>
               </div>
             </div>
 
-            {/* Back Bottom Bar */}
-            <div className="relative z-40 pt-3 border-t border-white/15 flex items-center justify-between text-xs text-white/60">
+            {/* Footer: couple print stamp · flip back */}
+            <div
+              className="pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
               <button
                 type="button"
                 onClick={() => setIsFlipped(false)}
-                className="hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
               >
-                <Repeat className="w-3.5 h-3.5" />
-                <span>Turn Polaroid back over</span>
+                <Repeat className="w-3 h-3" />
+                <span>Back to print</span>
               </button>
-
-              <span className="font-serif italic text-white/40">
-                Ever, Together ♡ Google & Nami
-              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Popup Modal for Removing Memory */}
+      {/* ========================================================
+          CONFIRMATION POPUP MODAL FOR REMOVING MEMORY
+         ======================================================== */}
       {isConfirmingDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsConfirmingDelete(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl p-6 sm:p-7 shadow-2xl border border-white/20 text-center animate-in zoom-in-95 duration-200 space-y-4"
+            className="w-full max-w-sm rounded-md p-6 sm:p-7 shadow-2xl border text-center animate-in zoom-in-95 duration-200 space-y-4"
             style={{
-              backgroundColor: canvasBg,
-              color: '#FFFFFF',
-              boxShadow: `0 25px 60px -10px rgba(0,0,0,0.7), 0 0 35px -5px ${accentColor}33`,
+              backgroundColor: paperBg,
+              color: inkColor,
+              borderColor: ruleColor,
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center text-red-400">
+            <div className="flex justify-center text-red-500">
               <AlertTriangle className="w-8 h-8 stroke-[1.75]" />
             </div>
 
             <div className="space-y-1.5">
-              <h4 className="font-serif text-xl font-bold tracking-tight text-white">
-                Remove this Polaroid?
+              <h4 className="font-poster uppercase text-2xl font-bold tracking-tight">
+                Remove this print?
               </h4>
-              <p className="text-xs sm:text-sm text-white/70 leading-relaxed px-2">
-                This will delete the logged snapshot and the love letter written on the back for this month.
+              <p className="text-xs sm:text-sm leading-relaxed px-2" style={{ color: mutedInk }}>
+                This will delete the archived photograph and field notes for {monthName} {year}.
               </p>
             </div>
 
-            <div className="py-2 px-3 rounded-xl bg-black/30 border border-white/10 text-xs text-white/80 truncate">
-              <span className="font-medium text-white">{memory.title || 'Logged Memory'}</span>
-              {memory.location && <span className="text-white/50"> • {memory.location}</span>}
+            <div
+              className="py-2 px-3 border text-xs truncate font-poster uppercase tracking-wide"
+              style={{ borderColor: ruleColor }}
+            >
+              <span>{printTitle}</span>
+              {memory.location && (
+                <span style={{ color: mutedInk }}> · {memory.location}</span>
+              )}
             </div>
 
             <div className="flex items-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(false)}
-                className="flex-1 py-2.5 px-4 rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all border border-white/15 cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all border cursor-pointer"
+                style={{ borderColor: ruleColor, color: inkColor }}
               >
                 Cancel
               </button>

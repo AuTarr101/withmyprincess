@@ -57,6 +57,10 @@ export interface MovieLogEntry {
   platform?: 'youtube' | 'imdb' | 'letterboxd' | 'link';
   reason?: string; // "Who cried first / favorite quote from the film"
   ticketUrl?: string; // Optional IMDb / Letterboxd URL for QR code
+  year?: string; // Release year shown beside the poster title e.g. "2016"
+  producer?: string; // "produced by" line on the minimalist poster
+  starring?: string; // Comma-separated cast list e.g. "Emilia Clarke, Sam Claflin"
+  stillUrl?: string; // Optional custom movie still image for the poster
   updated_at?: string;
 }
 

@@ -13,8 +13,8 @@ export default function Footer() {
   });
 
   useEffect(() => {
-    // Count up from June 1, 2026 at 02:13:19 AM
-    const startDate = new Date(2026, 5, 1, 2, 13, 19).getTime();
+    // Count up from June 21, 2026 at 02:13:19 AM Thailand Time (ICT / UTC+7)
+    const startDate = new Date('2026-06-21T02:13:19+07:00').getTime();
 
     const updateClock = () => {
       const now = Date.now();
@@ -47,7 +47,7 @@ export default function Footer() {
           Google & Nami ♡
         </h3>
 
-        {/* Counting Clock: count up from June 2026 2:13:19 am */}
+        {/* Counting Clock: count up from June 21, 2026 2:13:19 am */}
         <div className="inline-flex items-center justify-center gap-3 sm:gap-4 px-5 py-2.5 rounded-2xl bg-white dark:bg-[#1F161B] border border-cream-200/80 dark:border-[#382630] shadow-2xs dark:shadow-md">
           <div className="text-center min-w-[36px]">
             <span className="font-serif text-lg sm:text-2xl font-bold text-wine-700 dark:text-rose-200 block leading-none">
