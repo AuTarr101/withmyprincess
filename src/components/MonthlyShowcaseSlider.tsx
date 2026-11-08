@@ -34,19 +34,23 @@ export default function MonthlyShowcaseSlider({
   const isDark = theme === 'dark';
 
   const [mounted, setMounted] = useState(false);
-
-  // Continuous drum position (0 = movie, 1 = game, 2 = food, 3 = memory, 4 = music)
-  // Animated smoothly in requestAnimationFrame to eliminate CSS wrap-around glitches.
-  const [displayPos, setDisplayPos] = useState(0);
-  const targetPosRef = useRef(0);
-  const currentPosRef = useRef(0);
-  const dragOffsetRef = useRef(0);
-  const rafIdRef = useRef<number | null>(null);
-  const isDraggingRef = useRef(false);
-
+  const [activeIndex, setActiveIndex] = useState(0);
   const [mobilePerspective, setMobilePerspective] = useState<'his' | 'her'>('his');
 
+  // Physics state stored in refs so rAF mutates DOM directly at 120fps without React re-renders
+  const targetPosRef = useRef(0);
+  const currentPosRef = useRef(0);
+  const velocityRef = useRef(0);
+  const dragOffsetRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const rafIdRef = useRef<number | null>(null);
+  const lastFrameTimeRef = useRef<number | null>(null);
+  const activeIndexRef = useRef(0);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Wheel gesture state
   const lastWheelStepTimeRef = useRef(0);
   const wheelAccumRef = useRef(0);
   const wheelResetTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,7 +67,113 @@ export default function MonthlyShowcaseSlider({
   const monthId = `${year}-${String(month).padStart(2, '0')}`;
   const shortDate = `${monthName.slice(0, 3).toUpperCase()} ${year}`;
 
-  // Mount portal & lock background page scroll while showcase is open
+  // Apply 3D drum transforms directly to the 5 section DOM nodes (zero React overhead per frame)
+  const applyDrumTransforms = useCallback((pos: number) => {
+    const newActiveIdx =
+      ((Math.round(pos) % NUM_SECTIONS) + NUM_SECTIONS) % NUM_SECTIONS;
+    if (newActiveIdx !== activeIndexRef.current) {
+      activeIndexRef.current = newActiveIdx;
+      setActiveIndex(newActiveIdx);
+    }
+
+    for (let idx = 0; idx < NUM_SECTIONS; idx++) {
+      const el = sectionRefs.current[idx];
+      if (!el) continue;
+
+      const rawDiff = idx - pos;
+      const offset =
+        ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
+          NUM_SECTIONS / 2);
+      const absOffset = Math.abs(offset);
+
+      const isVisible = absOffset < 1.65;
+      const isCenter = absOffset < 0.35;
+      const isClickableNeighbor = absOffset >= 0.35 && absOffset < 1.35;
+
+      // Smooth cylindrical arc geometry
+      const angleRad = (offset * 36 * Math.PI) / 180;
+      const translateYPercent = Math.sin(angleRad) * 76;
+      const translateZPx = (Math.cos(angleRad) - 1) * 240;
+      const scale = Math.max(0.76, 1 - absOffset * 0.13);
+      const rotateXDeg = -offset * 20;
+
+      // Smooth cosine-eased opacity curve
+      let opacity = 0;
+      if (isVisible) {
+        if (absOffset <= 0.05) {
+          opacity = 1;
+        } else {
+          const t = Math.min(1, (absOffset - 0.05) / 1.5);
+          opacity = Math.max(0, Math.pow(1 - t, 1.45) * 0.65 + (absOffset < 0.5 ? (1 - absOffset * 2) * 0.35 : 0));
+        }
+      }
+
+      const zIndex = Math.round(100 - absOffset * 40);
+
+      el.style.transform = `perspective(1600px) translate3d(0, ${translateYPercent.toFixed(
+        3
+      )}%, ${translateZPx.toFixed(1)}px) scale(${scale.toFixed(4)}) rotateX(${rotateXDeg.toFixed(
+        2
+      )}deg)`;
+      el.style.opacity = opacity.toFixed(3);
+      el.style.zIndex = String(zIndex);
+      el.style.visibility = isVisible ? 'visible' : 'hidden';
+      el.style.pointerEvents = isCenter || isClickableNeighbor ? 'auto' : 'none';
+      el.style.cursor = isCenter ? 'default' : isClickableNeighbor ? 'pointer' : 'default';
+    }
+  }, []);
+
+  // Critically-damped spring physics loop running at native refresh rate (60/120/144Hz)
+  const startSpringLoop = useCallback(() => {
+    if (rafIdRef.current !== null) return;
+    lastFrameTimeRef.current = null;
+
+    const tick = (now: number) => {
+      const prevTime = lastFrameTimeRef.current ?? now;
+      lastFrameTimeRef.current = now;
+      // Clamp dt between 1ms and 32ms to stay stable across tab switches
+      const dt = Math.min(0.032, Math.max(0.001, (now - prevTime) / 1000));
+
+      const destination = targetPosRef.current + dragOffsetRef.current;
+
+      if (isDraggingRef.current) {
+        // Responsive spring tracking while finger/mouse is dragging
+        const diff = destination - currentPosRef.current;
+        currentPosRef.current += diff * Math.min(1, dt * 28);
+        velocityRef.current = 0;
+        applyDrumTransforms(currentPosRef.current);
+        rafIdRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      // Critically-damped spring: F = omega^2 * x - 2 * zeta * omega * v
+      const omega = 13.5; // Natural frequency for a lush, fluid glide
+      const zeta = 0.96; // Nearly critically damped (zero bounce, silky S-curve)
+      const displacement = destination - currentPosRef.current;
+      const springForce = omega * omega * displacement;
+      const dampingForce = 2 * zeta * omega * velocityRef.current;
+      const acceleration = springForce - dampingForce;
+
+      velocityRef.current += acceleration * dt;
+      currentPosRef.current += velocityRef.current * dt;
+
+      if (Math.abs(displacement) < 0.0006 && Math.abs(velocityRef.current) < 0.004) {
+        currentPosRef.current = destination;
+        velocityRef.current = 0;
+        applyDrumTransforms(destination);
+        rafIdRef.current = null;
+        lastFrameTimeRef.current = null;
+        return;
+      }
+
+      applyDrumTransforms(currentPosRef.current);
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
+  }, [applyDrumTransforms]);
+
+  // Mount portal, initialize transforms, & lock background page scroll
   useEffect(() => {
     setMounted(true);
     const prevOverflow = document.body.style.overflow;
@@ -72,55 +182,26 @@ export default function MonthlyShowcaseSlider({
       document.body.style.overflow = prevOverflow;
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
-      }
-    };
-  }, []);
-
-  // Smooth rAF animation loop towards (targetPosRef + dragOffsetRef)
-  const startAnimationLoop = useCallback(() => {
-    if (rafIdRef.current !== null) return;
-
-    const tick = () => {
-      const destination = targetPosRef.current + dragOffsetRef.current;
-      const diff = destination - currentPosRef.current;
-
-      if (isDraggingRef.current) {
-        // Follow pointer tightly while dragging
-        currentPosRef.current += diff * 0.45;
-        setDisplayPos(currentPosRef.current);
-        rafIdRef.current = requestAnimationFrame(tick);
-        return;
-      }
-
-      if (Math.abs(diff) < 0.001) {
-        currentPosRef.current = destination;
-        setDisplayPos(destination);
         rafIdRef.current = null;
-        return;
       }
-
-      // Smooth critically-damped lerp
-      currentPosRef.current += diff * 0.16;
-      setDisplayPos(currentPosRef.current);
-      rafIdRef.current = requestAnimationFrame(tick);
     };
-
-    rafIdRef.current = requestAnimationFrame(tick);
   }, []);
 
-  // Normalized active index (0..4)
-  const activeIndex =
-    ((Math.round(displayPos) % NUM_SECTIONS) + NUM_SECTIONS) % NUM_SECTIONS;
+  useEffect(() => {
+    if (mounted) {
+      applyDrumTransforms(currentPosRef.current);
+    }
+  }, [mounted, applyDrumTransforms]);
 
   const stepNext = useCallback(() => {
     targetPosRef.current = Math.round(targetPosRef.current) + 1;
-    startAnimationLoop();
-  }, [startAnimationLoop]);
+    startSpringLoop();
+  }, [startSpringLoop]);
 
   const stepPrev = useCallback(() => {
     targetPosRef.current = Math.round(targetPosRef.current) - 1;
-    startAnimationLoop();
-  }, [startAnimationLoop]);
+    startSpringLoop();
+  }, [startSpringLoop]);
 
   const goToSection = useCallback(
     (targetIdx: number) => {
@@ -130,9 +211,9 @@ export default function MonthlyShowcaseSlider({
       if (diff > NUM_SECTIONS / 2) diff -= NUM_SECTIONS;
       if (diff < -NUM_SECTIONS / 2) diff += NUM_SECTIONS;
       targetPosRef.current = currentRounded + diff;
-      startAnimationLoop();
+      startSpringLoop();
     },
-    [startAnimationLoop]
+    [startSpringLoop]
   );
 
   const handleClose = useCallback(() => {
@@ -167,7 +248,7 @@ export default function MonthlyShowcaseSlider({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [stepNext, stepPrev, handleClose]);
 
-  // Native non-passive Wheel listener
+  // Smooth Wheel / Trackpad listener
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -175,16 +256,19 @@ export default function MonthlyShowcaseSlider({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const now = performance.now();
-      if (now - lastWheelStepTimeRef.current < 420) return;
 
-      wheelAccumRef.current += e.deltaY;
-
+      // Reset accumulator if user paused scrolling
       if (wheelResetTimerRef.current) clearTimeout(wheelResetTimerRef.current);
       wheelResetTimerRef.current = setTimeout(() => {
         wheelAccumRef.current = 0;
-      }, 150);
+      }, 140);
 
-      const THRESHOLD = 32;
+      // Cooldown prevents trackpad inertia from skipping multiple cards at once
+      if (now - lastWheelStepTimeRef.current < 260) return;
+
+      wheelAccumRef.current += e.deltaY;
+
+      const THRESHOLD = 24;
       if (Math.abs(wheelAccumRef.current) >= THRESHOLD) {
         if (wheelAccumRef.current > 0) {
           stepNext();
@@ -226,11 +310,10 @@ export default function MonthlyShowcaseSlider({
     pointerDeltaYRef.current = dy;
     pointerDeltaXRef.current = dx;
 
-    if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) {
+    if (Math.abs(dy) > 6 && Math.abs(dy) >= Math.abs(dx)) {
       isDraggingRef.current = true;
-      // Dragging up (dy < 0) advances to next section (+pos)
-      dragOffsetRef.current = -dy / 380;
-      startAnimationLoop();
+      dragOffsetRef.current = -dy / 360;
+      startSpringLoop();
     }
   };
 
@@ -241,29 +324,31 @@ export default function MonthlyShowcaseSlider({
     const dy = pointerDeltaYRef.current;
     const dx = pointerDeltaXRef.current;
 
+    const wasDragging = isDraggingRef.current;
     isDraggingRef.current = false;
-    dragOffsetRef.current = 0;
 
     // Horizontal swipe on mobile
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 45) {
+    if (!wasDragging && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 45) {
+      dragOffsetRef.current = 0;
       if (dx < 0) {
         setMobilePerspective('her');
       } else {
         setMobilePerspective('his');
       }
-      startAnimationLoop();
+      startSpringLoop();
       return;
     }
 
-    // Vertical swipe
-    if (Math.abs(dy) > 45) {
+    // Fold drag offset into velocity/target for seamless release
+    dragOffsetRef.current = 0;
+    if (Math.abs(dy) > 42) {
       if (dy < 0) {
         stepNext();
       } else {
         stepPrev();
       }
     } else {
-      startAnimationLoop();
+      startSpringLoop();
     }
   };
 
@@ -837,87 +922,46 @@ export default function MonthlyShowcaseSlider({
         })}
       </div>
 
-      {/* Full-Screen Vertical Revolving Stage */}
+      {/* Full-Screen Vertical Revolving Stage (DOM-Ref Driven at 120fps) */}
       <div className="relative w-full h-full flex items-center justify-center px-4 sm:px-8 lg:px-14">
         <div className="relative w-full max-w-[1320px] h-[72vh] min-h-[460px] max-h-[680px] flex items-center justify-center">
-          {SECTIONS.map((section, idx) => {
-            // Circular offset in [-2.5, +2.5):
-            // offset === 0 -> active center card
-            // offset === +1 -> next card (below center)
-            // offset === -1 -> previous card (above center)
-            const rawDiff = idx - displayPos;
-            const offset =
-              ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
-                NUM_SECTIONS / 2);
-            const absOffset = Math.abs(offset);
-
-            // Hide back-of-drum cards well before the ±2.5 wrap point
-            const isVisible = absOffset < 1.55;
-            const isCenter = absOffset < 0.35;
-            const isClickableNeighbor = absOffset >= 0.35 && absOffset < 1.35;
-
-            // Smooth cylindrical drum curve
-            const angleRad = (offset * 38 * Math.PI) / 180;
-            const translateYPercent = Math.sin(angleRad) * 76;
-            const scale = Math.max(0.74, 1 - absOffset * 0.14);
-            const rotateXDeg = -offset * 22;
-
-            // Smooth opacity falloff (1 at center, ~0.24 at ±1, 0 at >=1.45)
-            const opacity = !isVisible
-              ? 0
-              : absOffset <= 0.08
-              ? 1
-              : Math.max(0, 1 - Math.pow((absOffset - 0.08) / 1.38, 0.78) * 0.86);
-
-            // Deterministic Z-sorting: closest card to center is always on top
-            const zIndex = Math.round(100 - absOffset * 40);
-
-            return (
-              <div
-                key={section.slug}
-                onClick={() => {
-                  if (isClickableNeighbor) {
-                    if (offset > 0) stepNext();
-                    else stepPrev();
-                  }
-                }}
-                className={`w-full h-full absolute inset-0 will-change-transform ${
-                  isCenter
-                    ? 'cursor-default'
-                    : isClickableNeighbor
-                    ? 'cursor-pointer'
-                    : 'pointer-events-none'
-                }`}
-                style={{
-                  transform: `perspective(1600px) translate3d(0, ${translateYPercent.toFixed(
-                    2
-                  )}%, 0) scale(${scale.toFixed(4)}) rotateX(${rotateXDeg.toFixed(2)}deg)`,
-                  opacity,
-                  zIndex,
-                  visibility: isVisible ? 'visible' : 'hidden',
-                  pointerEvents: isCenter || isClickableNeighbor ? 'auto' : 'none',
-                }}
-              >
-                {/* Side-by-Side Pure Minimalist Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-stretch w-full h-full">
-                  <div
-                    className={`w-full h-full ${
-                      mobilePerspective === 'his' ? 'block' : 'hidden md:block'
-                    }`}
-                  >
-                    {renderPureCard('his', hisData, section.slug)}
-                  </div>
-                  <div
-                    className={`w-full h-full ${
-                      mobilePerspective === 'her' ? 'block' : 'hidden md:block'
-                    }`}
-                  >
-                    {renderPureCard('her', herData, section.slug)}
-                  </div>
+          {SECTIONS.map((section, idx) => (
+            <div
+              key={section.slug}
+              ref={(el) => {
+                sectionRefs.current[idx] = el;
+              }}
+              onClick={() => {
+                const rawDiff = idx - currentPosRef.current;
+                const offset =
+                  ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
+                    NUM_SECTIONS / 2);
+                if (Math.abs(offset) >= 0.35 && Math.abs(offset) < 1.35) {
+                  if (offset > 0) stepNext();
+                  else stepPrev();
+                }
+              }}
+              className="w-full h-full absolute inset-0 will-change-[transform,opacity]"
+            >
+              {/* Side-by-Side Pure Minimalist Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-stretch w-full h-full">
+                <div
+                  className={`w-full h-full ${
+                    mobilePerspective === 'his' ? 'block' : 'hidden md:block'
+                  }`}
+                >
+                  {renderPureCard('his', hisData, section.slug)}
+                </div>
+                <div
+                  className={`w-full h-full ${
+                    mobilePerspective === 'her' ? 'block' : 'hidden md:block'
+                  }`}
+                >
+                  {renderPureCard('her', herData, section.slug)}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </div>

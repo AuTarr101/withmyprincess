@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   Category,
   CategorySlug,
@@ -158,6 +158,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const currentUserKey: UserId = activePerspective === 'his' ? 'google' : 'nami';
 
+  // Debounce timers & local edit timestamps so rapid edits don't spam Supabase or get overwritten by Realtime echoes
+  const supabaseDebounceMapRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const lastLocalEditTimeMapRef = useRef<Map<string, number>>(new Map());
+
   const setActivePerspective = (p: Perspective) => {
     setActivePerspectiveState(p);
   };
@@ -166,20 +170,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setActivePerspectiveState(id === 'google' ? 'his' : 'her');
   };
 
-  // Sync a single month entry for a given perspective to Supabase (if configured)
-  const syncMonthToSupabase = useCallback(async (perspective: Perspective, monthData: MonthData) => {
+  // Debounced sync of a single month entry for a given perspective to Supabase (if configured)
+  const syncMonthToSupabase = useCallback((perspective: Perspective, monthData: MonthData) => {
     if (!isSupabaseConfigured || !supabase) return;
-    try {
-      const payload = monthDataToRow(perspective, monthData);
-      const { error } = await supabase
-        .from('couple_monthly_logs')
-        .upsert(payload, { onConflict: 'perspective,month_id' });
-      if (error) {
-        console.warn('Supabase upsert warning:', error.message);
+    const key = `${perspective}:${monthData.id}`;
+    lastLocalEditTimeMapRef.current.set(key, Date.now());
+
+    const existingTimer = supabaseDebounceMapRef.current.get(key);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    const timer = setTimeout(async () => {
+      supabaseDebounceMapRef.current.delete(key);
+      if (!supabase) return;
+      try {
+        lastLocalEditTimeMapRef.current.set(key, Date.now());
+        const payload = monthDataToRow(perspective, monthData);
+        const { error } = await supabase
+          .from('couple_monthly_logs')
+          .upsert(payload, { onConflict: 'perspective,month_id' });
+        if (error) {
+          console.warn('Supabase upsert warning:', error.message);
+        }
+      } catch (err) {
+        console.warn('Supabase sync error:', err);
       }
-    } catch (err) {
-      console.warn('Supabase sync error:', err);
-    }
+    }, 450);
+
+    supabaseDebounceMapRef.current.set(key, timer);
   }, []);
 
   // 1. Load initial state from localStorage + fetch from Supabase if configured
@@ -289,6 +306,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           (payload) => {
             const row = payload.new as CoupleMonthlyLogRow | undefined;
             if (!row || !row.month_id || !row.perspective) return;
+            const key = `${row.perspective}:${row.month_id}`;
+            const lastEdit = lastLocalEditTimeMapRef.current.get(key) || 0;
+            // Ignore self-echo payloads arriving right after a local edit
+            if (Date.now() - lastEdit < 2200) return;
+
             const converted = rowToMonthData(row);
             const setter = row.perspective === 'his' ? setHisMonths : setHerMonths;
             setter((prev) => {
@@ -322,20 +344,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_HIS_MONTHS, JSON.stringify(hisMonths));
-    } catch (e) {
-      console.error('Failed to save hisMonths', e);
-    }
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY_HIS_MONTHS, JSON.stringify(hisMonths));
+      } catch (e) {
+        console.error('Failed to save hisMonths', e);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
   }, [hisMonths, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY_HER_MONTHS, JSON.stringify(herMonths));
-    } catch (e) {
-      console.error('Failed to save herMonths', e);
-    }
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY_HER_MONTHS, JSON.stringify(herMonths));
+      } catch (e) {
+        console.error('Failed to save herMonths', e);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
   }, [herMonths, isLoaded]);
 
   useEffect(() => {

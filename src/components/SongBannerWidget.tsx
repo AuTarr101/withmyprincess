@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MusicLogEntry } from '@/types/database';
 import { useApp } from '@/lib/store';
 import {
@@ -44,28 +44,52 @@ export default function SongBannerWidget({
   const [ratingInput, setRatingInput] = useState<string>((song.rating ?? 9.5).toFixed(1));
   const [hoverRating, setHoverRating] = useState<number | null>(null);
 
-  // Reason of choice state with auto-save
+  // Reason of choice state with debounced auto-save for zero typing lag
   const [reasonText, setReasonText] = useState(song.reason || '');
   const [isSaved, setIsSaved] = useState(false);
+  const isNotesFocusedRef = useRef(false);
+  const reasonDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const savedBadgeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Remove confirmation state
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
-    setReasonText(song.reason || '');
-  }, [song.reason]);
+    if (!isNotesFocusedRef.current) {
+      setReasonText(song.reason || '');
+    }
+  }, [song.reason, monthId]);
 
   useEffect(() => {
     setRatingInput((song.rating ?? 9.5).toFixed(1));
   }, [song.rating]);
 
+  const triggerSavedBadge = () => {
+    if (savedBadgeTimerRef.current) clearTimeout(savedBadgeTimerRef.current);
+    setIsSaved(true);
+    savedBadgeTimerRef.current = setTimeout(() => setIsSaved(false), 2000);
+  };
+
   const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setReasonText(newText);
-    updateMonthSongReason(monthId, newText);
-    setIsSaved(true);
-    const timer = setTimeout(() => setIsSaved(false), 2000);
-    return () => clearTimeout(timer);
+    if (reasonDebounceRef.current) clearTimeout(reasonDebounceRef.current);
+    reasonDebounceRef.current = setTimeout(() => {
+      updateMonthSongReason(monthId, newText);
+      triggerSavedBadge();
+    }, 400);
+  };
+
+  const handleReasonBlur = () => {
+    isNotesFocusedRef.current = false;
+    if (reasonDebounceRef.current) {
+      clearTimeout(reasonDebounceRef.current);
+      reasonDebounceRef.current = null;
+    }
+    if (reasonText !== (song.reason || '')) {
+      updateMonthSongReason(monthId, reasonText);
+      triggerSavedBadge();
+    }
   };
 
   const handleRatingInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -506,22 +530,12 @@ export default function SongBannerWidget({
             </div>
 
             {/* ========================================================
-                SECTION TO WRITE THE REASON OF THE CHOICE (Locked unless isEditing)
+                SECTION TO WRITE THE REASON OF THE CHOICE
                ======================================================== */}
             <div className="relative z-30 my-4 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-2 px-1">
                 <label className="text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-rose-100/85 flex items-center gap-2">
                   <span>Memories &amp; Reflections</span>
-                  {isEditing ? (
-                    <span className="text-[11px] text-wine-700 dark:text-amber-300/80 font-normal lowercase">
-                      (editing mode)
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-stone-400 dark:text-white/40 font-normal lowercase flex items-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      <span>locked • click Edit above to change</span>
-                    </span>
-                  )}
                 </label>
                 {isSaved && (
                   <span className="text-[11px] text-emerald-600 dark:text-emerald-300 font-mono flex items-center gap-1 animate-in fade-in">
@@ -531,36 +545,18 @@ export default function SongBannerWidget({
                 )}
               </div>
 
-              {/* Romantic Note Textarea / Locked View */}
-              <div
-                className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
-                  isEditing
-                    ? 'border-wine-400 dark:border-amber-300/50 bg-[#FAF6F0] dark:bg-black/40 ring-1 ring-wine-300/40 dark:ring-amber-300/20'
-                    : 'border-cream-200 dark:border-white/15 bg-[#FAF6F0]/80 dark:bg-black/25'
-                }`}
-              >
-                {isEditing ? (
-                  <textarea
-                    value={reasonText}
-                    onChange={handleReasonChange}
-                    placeholder="Write your thoughts, memories, feelings, lyrics, or what this song means to you..."
-                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed"
-                  />
-                ) : (
-                  <div
-                    onClick={onToggleEdit}
-                    className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-700 dark:text-white/90 font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
-                    title="Click Edit to modify"
-                  >
-                    {reasonText.trim() ? (
-                      reasonText
-                    ) : (
-                      <span className="text-stone-400 dark:text-white/35 italic">
-                        No notes yet. Click Edit to write your thoughts, memories, or reflections...
-                      </span>
-                    )}
-                  </div>
-                )}
+              {/* Romantic Note Textarea */}
+              <div className="flex-1 relative rounded-2xl overflow-hidden border transition-all border-cream-200 dark:border-white/15 bg-[#FAF6F0]/90 dark:bg-black/30 focus-within:border-wine-400 dark:focus-within:border-amber-300/50 focus-within:ring-1 focus-within:ring-wine-300/40 dark:focus-within:ring-amber-300/20">
+                <textarea
+                  value={reasonText}
+                  onFocus={() => {
+                    isNotesFocusedRef.current = true;
+                  }}
+                  onChange={handleReasonChange}
+                  onBlur={handleReasonBlur}
+                  placeholder="Write your thoughts, memories, feelings, lyrics, or what this song means to you..."
+                  className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed select-text cursor-text"
+                />
                 <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-stone-400 dark:text-white/30">
                   {reasonText.length} characters
                 </div>

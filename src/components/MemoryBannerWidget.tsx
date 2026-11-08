@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MemoryLogEntry } from '@/types/database';
 import { useApp } from '@/lib/store';
 import {
@@ -64,16 +64,21 @@ export default function MemoryBannerWidget({
   const [yearInput, setYearInput] = useState(memory.year || '');
   const [stillUrlInput, setStillUrlInput] = useState(memory.stillUrl || '');
 
-  // Reflection state
+  // Reflection state with debounced auto-save for zero typing lag
   const [reasonText, setReasonText] = useState(memory.reason || '');
   const [isSaved, setIsSaved] = useState(false);
+  const isNotesFocusedRef = useRef(false);
+  const reasonDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const savedBadgeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Remove confirmation modal state
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
-    setReasonText(memory.reason || '');
-  }, [memory.reason]);
+    if (!isNotesFocusedRef.current) {
+      setReasonText(memory.reason || '');
+    }
+  }, [memory.reason, monthId]);
 
   useEffect(() => {
     setRatingInput((memory.rating ?? 10.0).toFixed(1));
@@ -93,16 +98,31 @@ export default function MemoryBannerWidget({
   }, [memory.url]);
 
   const triggerSavedBadge = () => {
+    if (savedBadgeTimerRef.current) clearTimeout(savedBadgeTimerRef.current);
     setIsSaved(true);
-    const timer = setTimeout(() => setIsSaved(false), 2000);
-    return () => clearTimeout(timer);
+    savedBadgeTimerRef.current = setTimeout(() => setIsSaved(false), 2000);
   };
 
   const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setReasonText(newText);
-    updateMonthMemoryDetails(monthId, { reason: newText });
-    triggerSavedBadge();
+    if (reasonDebounceRef.current) clearTimeout(reasonDebounceRef.current);
+    reasonDebounceRef.current = setTimeout(() => {
+      updateMonthMemoryDetails(monthId, { reason: newText });
+      triggerSavedBadge();
+    }, 400);
+  };
+
+  const handleReasonBlur = () => {
+    isNotesFocusedRef.current = false;
+    if (reasonDebounceRef.current) {
+      clearTimeout(reasonDebounceRef.current);
+      reasonDebounceRef.current = null;
+    }
+    if (reasonText !== (memory.reason || '')) {
+      updateMonthMemoryDetails(monthId, { reason: reasonText });
+      triggerSavedBadge();
+    }
   };
 
   const handleRatingInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -661,40 +681,26 @@ export default function MemoryBannerWidget({
                   </span>
                   <span className="uppercase ml-3">Memories &amp; Reflections</span>
                 </span>
-                {isSaved ? (
+                {isSaved && (
                   <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
                     <Check className="w-3 h-3" />
                     Saved ♡
                   </span>
-                ) : (
-                  !isEditing && <Lock className="w-3 h-3 opacity-30 shrink-0" />
                 )}
               </div>
 
               <div className="flex-1 relative border" style={{ borderColor: ruleColor }}>
-                {isEditing ? (
-                  <textarea
-                    value={reasonText}
-                    onChange={handleReasonChange}
-                    placeholder="Write your thoughts, memories, what made this moment special, or anything you'd like to remember..."
-                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
-                    style={{ color: inkColor }}
-                  />
-                ) : (
-                  <div
-                    onClick={onToggleEdit}
-                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
-                    title="Click to edit"
-                  >
-                    {reasonText.trim() ? (
-                      reasonText
-                    ) : (
-                      <span className="italic" style={{ color: mutedInk }}>
-                        No notes yet. Click to write your thoughts, memories, or reflections...
-                      </span>
-                    )}
-                  </div>
-                )}
+                <textarea
+                  value={reasonText}
+                  onFocus={() => {
+                    isNotesFocusedRef.current = true;
+                  }}
+                  onChange={handleReasonChange}
+                  onBlur={handleReasonBlur}
+                  placeholder="Write your thoughts, memories, what made this moment special, or anything you'd like to remember..."
+                  className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40 select-text cursor-text"
+                  style={{ color: inkColor }}
+                />
                 <span
                   className="absolute bottom-2 right-3 pointer-events-none font-mono text-[10px]"
                   style={{ color: mutedInk }}
