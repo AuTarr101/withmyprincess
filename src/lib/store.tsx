@@ -120,6 +120,7 @@ interface AppContextType {
   updateMonthSongRating: (monthId: string, rating: number) => void;
   updateMonthSongReason: (monthId: string, reason: string) => void;
   updateMonthSongSpotify: (monthId: string, spotifyUrl: string) => void;
+  updateMonthSongDetails: (monthId: string, details: Partial<MusicLogEntry>) => void;
   deleteMonthSong: (monthId: string) => void;
   saveMonthMovie: (monthId: string, movie: MovieLogEntry | string) => void;
   updateMonthMovieRating: (monthId: string, rating: number) => void;
@@ -480,6 +481,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  const updateMonthSongDetails = (monthId: string, details: Partial<MusicLogEntry>) => {
+    mutateMonth(monthId, (target) =>
+      target.musicSong
+        ? {
+            ...target,
+            musicSong: { ...target.musicSong, ...details, updated_at: new Date().toISOString() },
+          }
+        : target
+    );
+  };
+
   const deleteMonthSong = (monthId: string) => {
     mutateMonth(monthId, (target) => {
       const updated = { ...target };
@@ -629,6 +641,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         updateMonthSongRating,
         updateMonthSongReason,
         updateMonthSongSpotify,
+        updateMonthSongDetails,
         deleteMonthSong,
         saveMonthMovie,
         updateMonthMovieRating,
