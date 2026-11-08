@@ -72,7 +72,7 @@ export default function MonthlyCalendar() {
                   : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
               }`}
             >
-              <span>🧸</span>
+              <img src="/his.png" alt="His" className="w-3.5 h-3.5 rounded-full object-cover" />
               <span>His</span>
             </button>
             <button
@@ -84,7 +84,7 @@ export default function MonthlyCalendar() {
                   : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
               }`}
             >
-              <span>🐶</span>
+              <img src="/munto.png" alt="Hers" className="w-3.5 h-3.5 rounded-full object-cover" />
               <span>Hers</span>
             </button>
           </div>
@@ -171,9 +171,14 @@ export default function MonthlyCalendar() {
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-warmText-light/80 dark:text-[#8C7A82]">
-                    {String(monthNum).padStart(2, '0')} •{' '}
-                    {activePerspective === 'his' ? '🧸 HIS' : '🐶 HERS'}
+                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-warmText-light/80 dark:text-[#8C7A82] flex items-center gap-1.5">
+                    <span>{String(monthNum).padStart(2, '0')} •</span>
+                    <img
+                      src={activePerspective === 'his' ? '/his.png' : '/munto.png'}
+                      alt=""
+                      className="w-3 h-3 rounded-full object-cover inline"
+                    />
+                    <span>{activePerspective === 'his' ? 'HIS' : 'HERS'}</span>
                   </span>
                   {isCurrent ? (
                     <span className="w-2 h-2 rounded-full bg-wine-600 dark:bg-rose-400 animate-pulse" />

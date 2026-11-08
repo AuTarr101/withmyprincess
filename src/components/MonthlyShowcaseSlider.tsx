@@ -256,7 +256,8 @@ export default function MonthlyShowcaseSlider({
 
   // Render a pure, minimal, button-free card for a single side ('his' or 'her')
   const renderPureCard = (side: 'his' | 'her', data: MonthData, slug: CategorySlug) => {
-    const ownerTag = side === 'his' ? 'HIS · GOOGLE' : 'HERS · NAMI';
+    const ownerTag = side === 'his' ? 'HIS · GOOGLE' : 'HERS · MUNTO';
+    const ownerAvatar = side === 'his' ? '/his.png' : '/munto.png';
 
     // 1. MOVIE
     if (slug === 'movie') {
@@ -285,7 +286,10 @@ export default function MonthlyShowcaseSlider({
               className="flex items-center justify-between pb-3 mb-4 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
               style={{ borderColor: rule, color: muted }}
             >
-              <span>{ownerTag}</span>
+              <span className="flex items-center gap-1.5">
+                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <span>{ownerTag}</span>
+              </span>
               <span>01 · FILM PRINT · {shortDate}</span>
             </div>
 
@@ -366,7 +370,10 @@ export default function MonthlyShowcaseSlider({
               className="flex items-center justify-between pb-3 mb-4 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
               style={{ borderColor: rule, color: muted }}
             >
-              <span>{ownerTag}</span>
+              <span className="flex items-center gap-1.5">
+                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <span>{ownerTag}</span>
+              </span>
               <span>02 · GAME PRINT · {shortDate}</span>
             </div>
 
@@ -442,7 +449,10 @@ export default function MonthlyShowcaseSlider({
               className="flex items-center justify-between pb-3 mb-4 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
               style={{ borderColor: rule, color: muted }}
             >
-              <span>{ownerTag}</span>
+              <span className="flex items-center gap-1.5">
+                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <span>{ownerTag}</span>
+              </span>
               <span>03 · PLAT DU MOIS · {shortDate}</span>
             </div>
 
@@ -518,7 +528,10 @@ export default function MonthlyShowcaseSlider({
               className="flex items-center justify-between pb-3 mb-4 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
               style={{ borderColor: rule, color: muted }}
             >
-              <span>{ownerTag}</span>
+              <span className="flex items-center gap-1.5">
+                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <span>{ownerTag}</span>
+              </span>
               <span>04 · ARCHIVAL PRINT · {shortDate}</span>
             </div>
 
@@ -593,7 +606,10 @@ export default function MonthlyShowcaseSlider({
             className="flex items-center justify-between pb-3 mb-4 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
             style={{ borderColor: rule, color: muted }}
           >
-            <span>{ownerTag}</span>
+            <span className="flex items-center gap-1.5">
+              <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+              <span>{ownerTag}</span>
+            </span>
             <span>05 · SONORITÉ · {shortDate}</span>
           </div>
 
@@ -690,13 +706,14 @@ export default function MonthlyShowcaseSlider({
               e.stopPropagation();
               setMobilePerspective('his');
             }}
-            className={`px-3 py-0.5 rounded-full transition-all cursor-pointer ${
+            className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               mobilePerspective === 'his'
                 ? 'bg-white text-stone-900 font-bold shadow-xs'
                 : 'opacity-60 text-current'
             }`}
           >
-            HIS
+            <img src="/his.png" alt="His" className="w-3.5 h-3.5 rounded-full object-cover" />
+            <span>HIS</span>
           </button>
           <button
             type="button"
@@ -704,13 +721,14 @@ export default function MonthlyShowcaseSlider({
               e.stopPropagation();
               setMobilePerspective('her');
             }}
-            className={`px-3 py-0.5 rounded-full transition-all cursor-pointer ${
+            className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               mobilePerspective === 'her'
                 ? 'bg-white text-stone-900 font-bold shadow-xs'
                 : 'opacity-60 text-current'
             }`}
           >
-            HERS
+            <img src="/munto.png" alt="Hers" className="w-3.5 h-3.5 rounded-full object-cover" />
+            <span>HERS</span>
           </button>
         </div>
 

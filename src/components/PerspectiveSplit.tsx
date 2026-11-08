@@ -2,8 +2,6 @@
 
 import React from 'react';
 import { useApp } from '@/lib/store';
-import TeddyBearIcon from './icons/TeddyBearIcon';
-import FluffyPuppyIcon from './icons/FluffyPuppyIcon';
 import { Check } from 'lucide-react';
 
 export default function PerspectiveSplit() {
@@ -14,7 +12,7 @@ export default function PerspectiveSplit() {
       {/* Container with split line down the middle */}
       <div className="scrapbook-card overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-cream-300 dark:divide-[#382630]">
         
-        {/* Left Side: Teddy Bear ("view his's") */}
+        {/* Left Side: His */}
         <button
           type="button"
           onClick={() => setActivePerspective('his')}
@@ -38,23 +36,25 @@ export default function PerspectiveSplit() {
             </span>
           </div>
 
-          {/* Big Teddy Bear Icon: fades on hover */}
+          {/* His Logo Image */}
           <div className="relative flex items-center justify-center my-4 pointer-events-none">
-            <TeddyBearIcon
-              className="w-20 h-20 sm:w-28 sm:h-28 text-amber-800/80 dark:text-amber-400/90 transition-all duration-300 opacity-90 group-hover:opacity-10 group-hover:scale-110"
+            <img
+              src="/his.png"
+              alt="His logo"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover shadow-md ring-4 ring-amber-200/80 dark:ring-amber-950/70 transition-all duration-300 group-hover:scale-105"
             />
-            {/* Hover Word on top in darker accent */}
-            <span className="absolute z-10 font-serif text-xl sm:text-2xl font-extrabold tracking-wide text-[#5C2314] dark:text-amber-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap">
+            {/* Hover Word on top */}
+            <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#5C2314] dark:text-amber-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
               view his&apos;s
             </span>
           </div>
 
           <p className="text-xs text-warmText-light/80 dark:text-[#A8969E] font-serif italic mt-1">
-            テディベア • His rankings & memories
+            Google • His rankings &amp; memories
           </p>
         </button>
 
-        {/* Right Side: Fluffy Puppy ("view her's") */}
+        {/* Right Side: Hers (Munto) */}
         <button
           type="button"
           onClick={() => setActivePerspective('her')}
@@ -78,19 +78,21 @@ export default function PerspectiveSplit() {
             </span>
           </div>
 
-          {/* Big Fluffy Puppy Icon: fades on hover */}
+          {/* Her Logo Image (munto.png) */}
           <div className="relative flex items-center justify-center my-4 pointer-events-none">
-            <FluffyPuppyIcon
-              className="w-20 h-20 sm:w-28 sm:h-28 text-rose-600/80 dark:text-rose-400/90 transition-all duration-300 opacity-90 group-hover:opacity-10 group-hover:scale-110"
+            <img
+              src="/munto.png"
+              alt="Munto logo"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover shadow-md ring-4 ring-rose-200/80 dark:ring-rose-950/70 transition-all duration-300 group-hover:scale-105"
             />
-            {/* Hover Word on top in darker accent */}
-            <span className="absolute z-10 font-serif text-xl sm:text-2xl font-extrabold tracking-wide text-[#701A30] dark:text-rose-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap">
+            {/* Hover Word on top */}
+            <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#701A30] dark:text-rose-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
               view her&apos;s
             </span>
           </div>
 
           <p className="text-xs text-warmText-light/80 dark:text-[#A8969E] font-serif italic mt-1">
-            小さなお姫様 • Her rankings & memories
+            Munto • Her rankings &amp; memories
           </p>
         </button>
 
