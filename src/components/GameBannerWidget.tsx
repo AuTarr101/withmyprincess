@@ -606,7 +606,7 @@ export default function GameBannerWidget({
                 1. HEADLINE
                ======================================================== */}
             <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
-              Player 1 &amp; 2
+              Game Journal
               <span
                 className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
                 style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
@@ -630,7 +630,7 @@ export default function GameBannerWidget({
                   { label: 'game', value: posterTitle },
                   { label: 'developer', value: game.developer || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
-                  { label: 'status', value: game.completionStatus || game.hoursPlayed || '100% Completed ♡' },
+                  { label: 'status', value: game.completionStatus || game.hoursPlayed || '—' },
                   { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
@@ -681,7 +681,7 @@ export default function GameBannerWidget({
             )}
 
             {/* ========================================================
-                3. CO-OP NOTES: funniest death / best teamwork moment
+                3. CO-OP NOTES: reflections & memories
                ======================================================== */}
             <div className="mt-6 flex-1 flex flex-col">
               <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
@@ -689,7 +689,7 @@ export default function GameBannerWidget({
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
                     notes
                   </span>
-                  <span className="uppercase ml-3">Funniest death / best teamwork moment</span>
+                  <span className="uppercase ml-3">Memories &amp; Reflections</span>
                 </span>
                 {isSaved ? (
                   <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
@@ -706,7 +706,7 @@ export default function GameBannerWidget({
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Funniest death, boss fight victory, clutch teamwork, or moments spent gaming together..."
+                    placeholder="Write your thoughts, memories, favorite moments, or anything you'd like to remember..."
                     className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
                     style={{ color: inkColor }}
                   />
@@ -720,7 +720,7 @@ export default function GameBannerWidget({
                       reasonText
                     ) : (
                       <span className="italic" style={{ color: mutedInk }}>
-                        No co-op notes yet. Click Edit to write your funniest moments or teamwork memories...
+                        No notes yet. Click to write your thoughts, memories, or reflections...
                       </span>
                     )}
                   </div>

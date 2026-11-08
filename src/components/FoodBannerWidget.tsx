@@ -154,7 +154,7 @@ export default function FoodBannerWidget({
 
     updateMonthFoodDetails(monthId, {
       title: titleInput.trim() || 'Signature Dish',
-      restaurant: restaurantInput.trim() || 'Table for Two',
+      restaurant: restaurantInput.trim() || undefined,
       genre: genreInput.trim() || 'Fine Dining',
       mapsUrl: ticketUrlInput.trim() || undefined,
       year: yearInput.trim() || undefined,
@@ -429,7 +429,7 @@ export default function FoodBannerWidget({
                 },
                 {
                   label: 'restaurant',
-                  value: food.restaurant || 'Table for Two',
+                  value: food.restaurant || '—',
                   input: restaurantInput,
                   setInput: setRestaurantInput,
                   placeholder: 'RESTAURANT NAME',
@@ -612,7 +612,7 @@ export default function FoodBannerWidget({
                 1. HEADLINE
                ======================================================== */}
             <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
-              Table For Two
+              Food Journal
               <span
                 className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
                 style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
@@ -636,7 +636,6 @@ export default function FoodBannerWidget({
                   { label: 'dish', value: posterTitle },
                   { label: 'restaurant', value: food.restaurant || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
-                  { label: 'table', value: 'Table N° 02 · For Two ♡' },
                   { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
@@ -687,7 +686,7 @@ export default function FoodBannerWidget({
             )}
 
             {/* ========================================================
-                3. TABLE NOTES: what were we laughing about over dinner
+                3. TABLE NOTES: reflections & memories
                ======================================================== */}
             <div className="mt-6 flex-1 flex flex-col">
               <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
@@ -695,7 +694,7 @@ export default function FoodBannerWidget({
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
                     notes
                   </span>
-                  <span className="uppercase ml-3">What were we laughing about over dinner</span>
+                  <span className="uppercase ml-3">Memories &amp; Reflections</span>
                 </span>
                 {isSaved ? (
                   <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
@@ -712,7 +711,7 @@ export default function FoodBannerWidget({
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Write down the conversation over dinner, whose dish was better, or the sweetest moment at the table..."
+                    placeholder="Write your thoughts, memories, the atmosphere, or anything you'd like to remember..."
                     className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
                     style={{ color: inkColor }}
                   />
@@ -726,7 +725,7 @@ export default function FoodBannerWidget({
                       reasonText
                     ) : (
                       <span className="italic" style={{ color: mutedInk }}>
-                        No table notes yet. Click Edit to write down your favorite dinner memories...
+                        No notes yet. Click to write your thoughts, memories, or reflections...
                       </span>
                     )}
                   </div>

@@ -647,7 +647,7 @@ export default function MovieBannerWidget({
                 1. HEADLINE (mirrors the poster title + year)
                ======================================================== */}
             <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
-              Admit Two
+              Movie Journal
               <span
                 className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
                 style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
@@ -671,7 +671,6 @@ export default function MovieBannerWidget({
                   { label: 'film', value: posterTitle },
                   { label: 'directed by', value: movie.director || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
-                  { label: 'seats', value: 'Row G · 1 & 2' },
                   { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
@@ -722,7 +721,7 @@ export default function MovieBannerWidget({
             )}
 
             {/* ========================================================
-                3. SCREENING NOTES: who cried first / favorite quote
+                3. SCREENING NOTES: reflections & memories
                ======================================================== */}
             <div className="mt-6 flex-1 flex flex-col">
               <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
@@ -730,7 +729,7 @@ export default function MovieBannerWidget({
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
                     notes
                   </span>
-                  <span className="uppercase ml-3">Who cried first / favorite quote</span>
+                  <span className="uppercase ml-3">Memories &amp; Reflections</span>
                 </span>
                 {isSaved ? (
                   <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
@@ -747,7 +746,7 @@ export default function MovieBannerWidget({
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Your favorite scene, a quote, who cried first, the snacks you shared..."
+                    placeholder="Write your thoughts, memories, favorite moments, or anything you'd like to remember..."
                     className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
                     style={{ color: inkColor }}
                   />
@@ -761,7 +760,7 @@ export default function MovieBannerWidget({
                       reasonText
                     ) : (
                       <span className="italic" style={{ color: mutedInk }}>
-                        No screening notes yet. Click Edit to write your favorite scene or quote...
+                        No notes yet. Click to write your thoughts, memories, or reflections...
                       </span>
                     )}
                   </div>

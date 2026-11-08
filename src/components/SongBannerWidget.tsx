@@ -511,7 +511,7 @@ export default function SongBannerWidget({
             <div className="relative z-30 my-4 flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-2 px-1">
                 <label className="text-xs font-semibold uppercase tracking-wider text-stone-700 dark:text-rose-100/85 flex items-center gap-2">
-                  <span>Reason for this choice</span>
+                  <span>Memories &amp; Reflections</span>
                   {isEditing ? (
                     <span className="text-[11px] text-wine-700 dark:text-amber-300/80 font-normal lowercase">
                       (editing mode)
@@ -543,7 +543,7 @@ export default function SongBannerWidget({
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Why did you choose this song for this month? Write down the memories, lyrics, feelings, or story behind it..."
+                    placeholder="Write your thoughts, memories, feelings, lyrics, or what this song means to you..."
                     className="w-full h-full min-h-[220px] p-5 text-sm sm:text-base text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-white/40 bg-transparent outline-none resize-none font-serif leading-relaxed"
                   />
                 ) : (
@@ -556,7 +556,7 @@ export default function SongBannerWidget({
                       reasonText
                     ) : (
                       <span className="text-stone-400 dark:text-white/35 italic">
-                        No reflection written yet. Click &quot;Edit&quot; above to add your thoughts...
+                        No notes yet. Click Edit to write your thoughts, memories, or reflections...
                       </span>
                     )}
                   </div>

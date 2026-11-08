@@ -401,7 +401,7 @@ export default function MemoryBannerWidget({
                 },
                 {
                   label: 'archive',
-                  value: `ROLL ${year} · FRAME 24A`,
+                  value: `${year} ARCHIVE`,
                   input: '',
                   setInput: () => {},
                   placeholder: '',
@@ -577,7 +577,7 @@ export default function MemoryBannerWidget({
                 1. HEADLINE
                ======================================================== */}
             <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
-              Time Capsule
+              Memory Journal
               <span
                 className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
                 style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
@@ -601,7 +601,6 @@ export default function MemoryBannerWidget({
                   { label: 'moment', value: posterTitle },
                   { label: 'location', value: memory.location || `${monthName} ${year}` },
                   { label: 'date', value: `${monthName} ${year}` },
-                  { label: 'frame', value: `Roll ${year} · Frame 24A` },
                   { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
@@ -652,7 +651,7 @@ export default function MemoryBannerWidget({
             )}
 
             {/* ========================================================
-                3. FIELD NOTES: if we could pause time in this exact second
+                3. FIELD NOTES: reflections & memories
                ======================================================== */}
             <div className="mt-6 flex-1 flex flex-col">
               <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
@@ -660,7 +659,7 @@ export default function MemoryBannerWidget({
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
                     notes
                   </span>
-                  <span className="uppercase ml-3">If we could pause time in this exact second</span>
+                  <span className="uppercase ml-3">Memories &amp; Reflections</span>
                 </span>
                 {isSaved ? (
                   <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
@@ -677,7 +676,7 @@ export default function MemoryBannerWidget({
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="What did the air feel like, what were we talking about, and why will we never forget this moment?"
+                    placeholder="Write your thoughts, memories, what made this moment special, or anything you'd like to remember..."
                     className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
                     style={{ color: inkColor }}
                   />
@@ -691,7 +690,7 @@ export default function MemoryBannerWidget({
                       reasonText
                     ) : (
                       <span className="italic" style={{ color: mutedInk }}>
-                        No field notes yet. Click Edit to write down your memories from this day...
+                        No notes yet. Click to write your thoughts, memories, or reflections...
                       </span>
                     )}
                   </div>
