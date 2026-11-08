@@ -15,16 +15,16 @@ interface Keepsake {
 // In chronological order (earliest to latest)
 const KEEPSAKES: Keepsake[] = [
   {
-    id: 'special-letter',
-    name: 'Anniversary Memory & Photo Gallery Edition',
-    date: 'Jun 17 at 2:00 PM',
-    url: '/archive/special-letter.html',
-  },
-  {
     id: 'anniversary-edition',
-    name: 'Special Love Letter & Envelope Keepsake',
+    name: 'Anniversary Memory & Photo Gallery Edition',
     date: 'Jul 21 at 10:10 PM',
     url: '/archive/anniversary-edition.html',
+  },
+  {
+    id: 'special-letter',
+    name: 'Special Love Letter & Envelope Keepsake',
+    date: 'Jun 17 at 2:00 PM',
+    url: '/archive/special-letter.html',
   },
   {
     id: 'open-when-letters',
