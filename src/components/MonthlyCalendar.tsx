@@ -72,7 +72,7 @@ export default function MonthlyCalendar() {
                   : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
               }`}
             >
-              <img src="/his.png" alt="His" className="w-3.5 h-3.5 rounded-full object-cover" />
+              <img src="/his.png" alt="His" className="w-4 h-4 object-contain" />
               <span>His</span>
             </button>
             <button
@@ -84,7 +84,7 @@ export default function MonthlyCalendar() {
                   : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
               }`}
             >
-              <img src="/munto.png" alt="Hers" className="w-3.5 h-3.5 rounded-full object-cover" />
+              <img src="/munto.png" alt="Hers" className="w-4 h-4 object-contain" />
               <span>Hers</span>
             </button>
           </div>
@@ -176,7 +176,7 @@ export default function MonthlyCalendar() {
                     <img
                       src={activePerspective === 'his' ? '/his.png' : '/munto.png'}
                       alt=""
-                      className="w-3 h-3 rounded-full object-cover inline"
+                      className="w-3.5 h-3.5 object-contain inline"
                     />
                     <span>{activePerspective === 'his' ? 'HIS' : 'HERS'}</span>
                   </span>

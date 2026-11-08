@@ -18,7 +18,7 @@ export default function PerspectivePill() {
         }`}
         title="View & edit Google's (His) picks"
       >
-        <img src="/his.png" alt="His" className="w-4 h-4 rounded-full object-cover" />
+        <img src="/his.png" alt="His" className="w-5 h-5 object-contain" />
         <span>His Space</span>
       </button>
 
@@ -32,7 +32,7 @@ export default function PerspectivePill() {
         }`}
         title="View & edit Munto's (Her) picks"
       >
-        <img src="/munto.png" alt="Munto" className="w-4 h-4 rounded-full object-cover" />
+        <img src="/munto.png" alt="Munto" className="w-5 h-5 object-contain" />
         <span>Her Space</span>
       </button>
 

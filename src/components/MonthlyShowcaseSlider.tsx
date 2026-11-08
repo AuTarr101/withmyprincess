@@ -287,7 +287,7 @@ export default function MonthlyShowcaseSlider({
               style={{ borderColor: rule, color: muted }}
             >
               <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
                 <span>{ownerTag}</span>
               </span>
               <span>01 · FILM PRINT · {shortDate}</span>
@@ -371,7 +371,7 @@ export default function MonthlyShowcaseSlider({
               style={{ borderColor: rule, color: muted }}
             >
               <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
                 <span>{ownerTag}</span>
               </span>
               <span>02 · GAME PRINT · {shortDate}</span>
@@ -450,7 +450,7 @@ export default function MonthlyShowcaseSlider({
               style={{ borderColor: rule, color: muted }}
             >
               <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
                 <span>{ownerTag}</span>
               </span>
               <span>03 · PLAT DU MOIS · {shortDate}</span>
@@ -529,7 +529,7 @@ export default function MonthlyShowcaseSlider({
               style={{ borderColor: rule, color: muted }}
             >
               <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
                 <span>{ownerTag}</span>
               </span>
               <span>04 · ARCHIVAL PRINT · {shortDate}</span>
@@ -607,7 +607,7 @@ export default function MonthlyShowcaseSlider({
             style={{ borderColor: rule, color: muted }}
           >
             <span className="flex items-center gap-1.5">
-              <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+              <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
               <span>{ownerTag}</span>
             </span>
             <span>05 · SONORITÉ · {shortDate}</span>
@@ -712,7 +712,7 @@ export default function MonthlyShowcaseSlider({
                 : 'opacity-60 text-current'
             }`}
           >
-            <img src="/his.png" alt="His" className="w-3.5 h-3.5 rounded-full object-cover" />
+            <img src="/his.png" alt="His" className="w-4 h-4 object-contain" />
             <span>HIS</span>
           </button>
           <button
@@ -727,7 +727,7 @@ export default function MonthlyShowcaseSlider({
                 : 'opacity-60 text-current'
             }`}
           >
-            <img src="/munto.png" alt="Hers" className="w-3.5 h-3.5 rounded-full object-cover" />
+            <img src="/munto.png" alt="Hers" className="w-4 h-4 object-contain" />
             <span>HERS</span>
           </button>
         </div>

@@ -41,7 +41,7 @@ export default function PerspectiveSplit() {
             <img
               src="/his.png"
               alt="His logo"
-              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover shadow-md ring-4 ring-amber-200/80 dark:ring-amber-950/70 transition-all duration-300 group-hover:scale-105"
+              className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1"
             />
             {/* Hover Word on top */}
             <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#5C2314] dark:text-amber-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
@@ -83,7 +83,7 @@ export default function PerspectiveSplit() {
             <img
               src="/munto.png"
               alt="Munto logo"
-              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover shadow-md ring-4 ring-rose-200/80 dark:ring-rose-950/70 transition-all duration-300 group-hover:scale-105"
+              className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1"
             />
             {/* Hover Word on top */}
             <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#701A30] dark:text-rose-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
