@@ -41,7 +41,38 @@ interface CoupleMonthlyLogRow {
   updated_at?: string;
 }
 
+function isMockFood(food?: FoodLogEntry | null): boolean {
+  if (!food) return false;
+  return (
+    food.title === 'Truffle Cream Tagliolini & Wagyu' ||
+    food.restaurant === 'Bistro Milano' ||
+    Boolean(food.url && food.url.includes('1551183053-bf91a1d81141'))
+  );
+}
+
+function isMockMemory(memory?: MemoryLogEntry | null): boolean {
+  if (!memory) return false;
+  return (
+    Boolean(memory.title && memory.title.includes('Rainy midnight walk')) ||
+    Boolean(memory.url && memory.url.includes('1516589178581-6cd7833ae3b2'))
+  );
+}
+
+function sanitizeMonthData(m: MonthData): MonthData {
+  const hasMockFood = isMockFood(m.foodLog);
+  const hasMockMemory = isMockMemory(m.memoryLog);
+  if (!hasMockFood && !hasMockMemory) return m;
+
+  const copy = { ...m };
+  if (hasMockFood) delete copy.foodLog;
+  if (hasMockMemory) delete copy.memoryLog;
+  return copy;
+}
+
 function rowToMonthData(row: CoupleMonthlyLogRow): MonthData {
+  const validFood = row.food_log?.url && !isMockFood(row.food_log) ? row.food_log : undefined;
+  const validMemory = row.memory_log?.url && !isMockMemory(row.memory_log) ? row.memory_log : undefined;
+
   return {
     id: row.month_id,
     month: row.month,
@@ -50,8 +81,8 @@ function rowToMonthData(row: CoupleMonthlyLogRow): MonthData {
     ...(row.music_song?.url ? { musicSong: row.music_song } : {}),
     ...(row.movie_log?.url ? { movieLog: row.movie_log } : {}),
     ...(row.game_log?.url ? { gameLog: row.game_log } : {}),
-    ...(row.food_log?.url ? { foodLog: row.food_log } : {}),
-    ...(row.memory_log?.url ? { memoryLog: row.memory_log } : {}),
+    ...(validFood ? { foodLog: validFood } : {}),
+    ...(validMemory ? { memoryLog: validMemory } : {}),
     categories: row.categories || {
       movie: { category_slug: 'movie' },
       game: { category_slug: 'game' },
@@ -216,15 +247,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const rawLegacy = localStorage.getItem(STORAGE_KEY_LEGACY_MONTHS);
 
       if (rawHis) {
-        loadedHis = JSON.parse(rawHis);
+        loadedHis = (JSON.parse(rawHis) as MonthData[]).map(sanitizeMonthData);
       } else if (rawLegacy) {
-        loadedHis = JSON.parse(rawLegacy);
+        loadedHis = (JSON.parse(rawLegacy) as MonthData[]).map(sanitizeMonthData);
+      } else {
+        loadedHis = loadedHis.map(sanitizeMonthData);
       }
 
       if (rawHer) {
-        loadedHer = JSON.parse(rawHer);
+        loadedHer = (JSON.parse(rawHer) as MonthData[]).map(sanitizeMonthData);
       } else if (rawLegacy) {
-        loadedHer = JSON.parse(rawLegacy);
+        loadedHer = (JSON.parse(rawLegacy) as MonthData[]).map(sanitizeMonthData);
+      } else {
+        loadedHer = loadedHer.map(sanitizeMonthData);
       }
 
       setHisMonths(loadedHis);
@@ -277,6 +312,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const remoteHer = rows
               .filter((r) => r.perspective === 'her')
               .map(rowToMonthData);
+
+            // Clean up any stale mock food or memory on Supabase if previously seeded
+            const mockRows = rows.filter(
+              (r) => isMockFood(r.food_log) || isMockMemory(r.memory_log)
+            );
+            if (mockRows.length > 0) {
+              for (const mr of mockRows) {
+                const patch: Partial<CoupleMonthlyLogRow> = {};
+                if (isMockFood(mr.food_log)) patch.food_log = null;
+                if (isMockMemory(mr.memory_log)) patch.memory_log = null;
+                client
+                  .from('couple_monthly_logs')
+                  .update(patch)
+                  .match({ perspective: mr.perspective, month_id: mr.month_id })
+                  .then(() => {});
+              }
+            }
 
             if (remoteHis.length > 0) {
               setHisMonths((prev) => {
