@@ -30,12 +30,25 @@ export default function MonthlyShowcaseSlider({
   onClose,
 }: MonthlyShowcaseSliderProps) {
   const router = useRouter();
-  const { getPerspectiveMonth, theme } = useApp();
+  const { getPerspectiveMonth, activePerspective, setActivePerspective, theme } = useApp();
   const isDark = theme === 'dark';
 
   const [mounted, setMounted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [mobilePerspective, setMobilePerspective] = useState<'his' | 'her'>('his');
+  // Sync mobile perspective with global activePerspective so His/Hers switches seamlessly
+  const [mobilePerspective, setMobilePerspective] = useState<'his' | 'her'>(activePerspective);
+
+  useEffect(() => {
+    setMobilePerspective(activePerspective);
+  }, [activePerspective]);
+
+  const switchMobilePerspective = useCallback(
+    (side: 'his' | 'her') => {
+      setMobilePerspective(side);
+      setActivePerspective(side);
+    },
+    [setActivePerspective]
+  );
 
   // Physics state stored in refs so rAF mutates DOM directly at 120fps without React re-renders
   const targetPosRef = useRef(0);
@@ -43,6 +56,7 @@ export default function MonthlyShowcaseSlider({
   const velocityRef = useRef(0);
   const dragOffsetRef = useRef(0);
   const isDraggingRef = useRef(false);
+  const gestureAxisRef = useRef<'none' | 'vertical' | 'horizontal'>('none');
   const rafIdRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const activeIndexRef = useRef(0);
@@ -67,61 +81,79 @@ export default function MonthlyShowcaseSlider({
   const monthId = `${year}-${String(month).padStart(2, '0')}`;
   const shortDate = `${monthName.slice(0, 3).toUpperCase()} ${year}`;
 
-  // Apply 3D drum transforms directly to the 5 section DOM nodes (zero React overhead per frame)
-  const applyDrumTransforms = useCallback((pos: number) => {
-    const newActiveIdx =
-      ((Math.round(pos) % NUM_SECTIONS) + NUM_SECTIONS) % NUM_SECTIONS;
-    if (newActiveIdx !== activeIndexRef.current) {
-      activeIndexRef.current = newActiveIdx;
-      setActiveIndex(newActiveIdx);
+  // Compute style for a given section index and drum position
+  const computeSectionStyle = useCallback((idx: number, pos: number) => {
+    const rawDiff = idx - pos;
+    const offset =
+      ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
+        NUM_SECTIONS / 2);
+    const absOffset = Math.abs(offset);
+
+    const isVisible = absOffset < 1.45;
+    const isCenter = absOffset < 0.35;
+    const isClickableNeighbor = absOffset >= 0.35 && absOffset < 1.25;
+
+    // Clean vertical drum separation so adjacent cards peek above/below without overlapping center card
+    const angleRad = (offset * 42 * Math.PI) / 180;
+    const translateYPercent = Math.sin(angleRad) * 106;
+    const translateZPx = (Math.cos(angleRad) - 1) * 260;
+    const scale = Math.max(0.76, 1 - absOffset * 0.15);
+    const rotateXDeg = -offset * 22;
+
+    // Crisp center card (opacity 1), subtle ghost preview for neighbors (~0.22), 0 beyond ±1.35
+    let opacity = 0;
+    if (isVisible) {
+      if (absOffset <= 0.06) {
+        opacity = 1;
+      } else if (absOffset < 0.65) {
+        const t = (absOffset - 0.06) / 0.59;
+        opacity = 1 - t * 0.76;
+      } else {
+        const t = Math.min(1, (absOffset - 0.65) / 0.75);
+        opacity = 0.24 * (1 - t);
+      }
     }
 
-    for (let idx = 0; idx < NUM_SECTIONS; idx++) {
-      const el = sectionRefs.current[idx];
-      if (!el) continue;
+    const zIndex = Math.round(100 - absOffset * 40);
 
-      const rawDiff = idx - pos;
-      const offset =
-        ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
-          NUM_SECTIONS / 2);
-      const absOffset = Math.abs(offset);
-
-      const isVisible = absOffset < 1.65;
-      const isCenter = absOffset < 0.35;
-      const isClickableNeighbor = absOffset >= 0.35 && absOffset < 1.35;
-
-      // Smooth cylindrical arc geometry
-      const angleRad = (offset * 36 * Math.PI) / 180;
-      const translateYPercent = Math.sin(angleRad) * 76;
-      const translateZPx = (Math.cos(angleRad) - 1) * 240;
-      const scale = Math.max(0.76, 1 - absOffset * 0.13);
-      const rotateXDeg = -offset * 20;
-
-      // Smooth cosine-eased opacity curve
-      let opacity = 0;
-      if (isVisible) {
-        if (absOffset <= 0.05) {
-          opacity = 1;
-        } else {
-          const t = Math.min(1, (absOffset - 0.05) / 1.5);
-          opacity = Math.max(0, Math.pow(1 - t, 1.45) * 0.65 + (absOffset < 0.5 ? (1 - absOffset * 2) * 0.35 : 0));
-        }
-      }
-
-      const zIndex = Math.round(100 - absOffset * 40);
-
-      el.style.transform = `perspective(1600px) translate3d(0, ${translateYPercent.toFixed(
+    return {
+      transform: `perspective(1600px) translate3d(0, ${translateYPercent.toFixed(
         3
       )}%, ${translateZPx.toFixed(1)}px) scale(${scale.toFixed(4)}) rotateX(${rotateXDeg.toFixed(
         2
-      )}deg)`;
-      el.style.opacity = opacity.toFixed(3);
-      el.style.zIndex = String(zIndex);
-      el.style.visibility = isVisible ? 'visible' : 'hidden';
-      el.style.pointerEvents = isCenter || isClickableNeighbor ? 'auto' : 'none';
-      el.style.cursor = isCenter ? 'default' : isClickableNeighbor ? 'pointer' : 'default';
-    }
+      )}deg)`,
+      opacity: opacity.toFixed(3),
+      zIndex: String(zIndex),
+      visibility: (isVisible ? 'visible' : 'hidden') as 'visible' | 'hidden',
+      pointerEvents: (isCenter || isClickableNeighbor ? 'auto' : 'none') as 'auto' | 'none',
+      cursor: isCenter ? 'default' : isClickableNeighbor ? 'pointer' : 'default',
+    };
   }, []);
+
+  // Apply 3D drum transforms directly to the 5 section DOM nodes (zero React overhead per frame)
+  const applyDrumTransforms = useCallback(
+    (pos: number) => {
+      const newActiveIdx =
+        ((Math.round(pos) % NUM_SECTIONS) + NUM_SECTIONS) % NUM_SECTIONS;
+      if (newActiveIdx !== activeIndexRef.current) {
+        activeIndexRef.current = newActiveIdx;
+        setActiveIndex(newActiveIdx);
+      }
+
+      for (let idx = 0; idx < NUM_SECTIONS; idx++) {
+        const el = sectionRefs.current[idx];
+        if (!el) continue;
+        const st = computeSectionStyle(idx, pos);
+        el.style.transform = st.transform;
+        el.style.opacity = st.opacity;
+        el.style.zIndex = st.zIndex;
+        el.style.visibility = st.visibility;
+        el.style.pointerEvents = st.pointerEvents;
+        el.style.cursor = st.cursor;
+      }
+    },
+    [computeSectionStyle]
+  );
 
   // Critically-damped spring physics loop running at native refresh rate (60/120/144Hz)
   const startSpringLoop = useCallback(() => {
@@ -131,13 +163,11 @@ export default function MonthlyShowcaseSlider({
     const tick = (now: number) => {
       const prevTime = lastFrameTimeRef.current ?? now;
       lastFrameTimeRef.current = now;
-      // Clamp dt between 1ms and 32ms to stay stable across tab switches
       const dt = Math.min(0.032, Math.max(0.001, (now - prevTime) / 1000));
 
       const destination = targetPosRef.current + dragOffsetRef.current;
 
       if (isDraggingRef.current) {
-        // Responsive spring tracking while finger/mouse is dragging
         const diff = destination - currentPosRef.current;
         currentPosRef.current += diff * Math.min(1, dt * 28);
         velocityRef.current = 0;
@@ -146,9 +176,8 @@ export default function MonthlyShowcaseSlider({
         return;
       }
 
-      // Critically-damped spring: F = omega^2 * x - 2 * zeta * omega * v
-      const omega = 13.5; // Natural frequency for a lush, fluid glide
-      const zeta = 0.96; // Nearly critically damped (zero bounce, silky S-curve)
+      const omega = 13.5;
+      const zeta = 0.96;
       const displacement = destination - currentPosRef.current;
       const springForce = omega * omega * displacement;
       const dampingForce = 2 * zeta * omega * velocityRef.current;
@@ -191,7 +220,7 @@ export default function MonthlyShowcaseSlider({
     if (mounted) {
       applyDrumTransforms(currentPosRef.current);
     }
-  }, [mounted, applyDrumTransforms]);
+  }, [mounted, mobilePerspective, applyDrumTransforms]);
 
   const stepNext = useCallback(() => {
     targetPosRef.current = Math.round(targetPosRef.current) + 1;
@@ -235,10 +264,10 @@ export default function MonthlyShowcaseSlider({
         stepPrev();
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        setMobilePerspective('his');
+        switchMobilePerspective('his');
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
-        setMobilePerspective('her');
+        switchMobilePerspective('her');
       } else if (e.key === 'Escape') {
         e.preventDefault();
         handleClose();
@@ -246,7 +275,7 @@ export default function MonthlyShowcaseSlider({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [stepNext, stepPrev, handleClose]);
+  }, [stepNext, stepPrev, switchMobilePerspective, handleClose]);
 
   // Smooth Wheel / Trackpad listener
   useEffect(() => {
@@ -257,13 +286,11 @@ export default function MonthlyShowcaseSlider({
       e.preventDefault();
       const now = performance.now();
 
-      // Reset accumulator if user paused scrolling
       if (wheelResetTimerRef.current) clearTimeout(wheelResetTimerRef.current);
       wheelResetTimerRef.current = setTimeout(() => {
         wheelAccumRef.current = 0;
       }, 140);
 
-      // Cooldown prevents trackpad inertia from skipping multiple cards at once
       if (now - lastWheelStepTimeRef.current < 260) return;
 
       wheelAccumRef.current += e.deltaY;
@@ -289,11 +316,12 @@ export default function MonthlyShowcaseSlider({
 
   // Pointer drag events for interactive swiping (touch & mouse)
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
     pointerStartYRef.current = e.clientY;
     pointerStartXRef.current = e.clientX;
     pointerDeltaYRef.current = 0;
     pointerDeltaXRef.current = 0;
+    gestureAxisRef.current = 'none';
     isPointerDownRef.current = true;
   };
 
@@ -310,9 +338,14 @@ export default function MonthlyShowcaseSlider({
     pointerDeltaYRef.current = dy;
     pointerDeltaXRef.current = dx;
 
-    if (Math.abs(dy) > 6 && Math.abs(dy) >= Math.abs(dx)) {
+    // Lock gesture axis once finger moves past 10px
+    if (gestureAxisRef.current === 'none' && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      gestureAxisRef.current = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'horizontal' : 'vertical';
+    }
+
+    if (gestureAxisRef.current === 'vertical') {
       isDraggingRef.current = true;
-      dragOffsetRef.current = -dy / 360;
+      dragOffsetRef.current = -dy / 340;
       startSpringLoop();
     }
   };
@@ -323,25 +356,25 @@ export default function MonthlyShowcaseSlider({
 
     const dy = pointerDeltaYRef.current;
     const dx = pointerDeltaXRef.current;
+    const axis = gestureAxisRef.current;
 
-    const wasDragging = isDraggingRef.current;
     isDraggingRef.current = false;
+    gestureAxisRef.current = 'none';
+    dragOffsetRef.current = 0;
 
-    // Horizontal swipe on mobile
-    if (!wasDragging && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 45) {
-      dragOffsetRef.current = 0;
+    // Horizontal swipe on mobile switches between His and Her view
+    if (axis === 'horizontal' && Math.abs(dx) > 36) {
       if (dx < 0) {
-        setMobilePerspective('her');
+        switchMobilePerspective('her');
       } else {
-        setMobilePerspective('his');
+        switchMobilePerspective('his');
       }
       startSpringLoop();
       return;
     }
 
-    // Fold drag offset into velocity/target for seamless release
-    dragOffsetRef.current = 0;
-    if (Math.abs(dy) > 42) {
+    // Vertical swipe steps to next/previous category
+    if (axis === 'vertical' && Math.abs(dy) > 38) {
       if (dy < 0) {
         stepNext();
       } else {
@@ -407,6 +440,24 @@ export default function MonthlyShowcaseSlider({
     const ownerTag = side === 'his' ? 'HIS · GOOGLE' : 'HERS · NAMI';
     const ownerAvatar = side === 'his' ? '/his.png' : '/munto.png';
 
+    const cardHeader = (codeLabel: string) => (
+      <div
+        className="shrink-0 flex items-center justify-between gap-2 pb-2 sm:pb-2.5 mb-3 sm:mb-3.5 border-b font-mono text-[9px] sm:text-[11px] tracking-[0.12em] sm:tracking-[0.22em] uppercase"
+        style={{
+          borderColor: isDark ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)',
+          color: isDark ? '#8F877C' : '#7A756F',
+        }}
+      >
+        <span className="flex items-center gap-1.5 shrink-0">
+          <img src={ownerAvatar} alt="" className="w-3.5 h-3.5 sm:w-4 sm:h-4 object-contain" />
+          <span>{ownerTag}</span>
+        </span>
+        <span className="truncate text-right">
+          {codeLabel} · {shortDate}
+        </span>
+      </div>
+    );
+
     // 1. MOVIE
     if (slug === 'movie') {
       const movie = data.movieLog;
@@ -420,7 +471,7 @@ export default function MonthlyShowcaseSlider({
 
       return (
         <div
-          className="w-full h-full rounded-md p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
+          className="w-full h-full rounded-md p-4 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
           style={{
             backgroundColor: paperBg,
             color: ink,
@@ -430,48 +481,45 @@ export default function MonthlyShowcaseSlider({
           }}
         >
           <div className="flex-1 min-h-0 flex flex-col">
-            <div
-              className="shrink-0 flex items-center justify-between pb-2.5 mb-3.5 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
-              style={{ borderColor: rule, color: muted }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
-                <span>{ownerTag}</span>
-              </span>
-              <span>01 · FILM PRINT · {shortDate}</span>
-            </div>
+            {cardHeader('01 · FILM PRINT')}
 
-            <div className="flex-1 min-h-[140px] w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
+            <div className="flex-1 min-h-0 w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
               {hasMovie && image ? (
-                <img src={image} alt={movie?.title || 'Film'} className="w-full h-full object-cover" />
+                <img
+                  src={image}
+                  alt={movie?.title || 'Film'}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                <div className=" absolute inset-0 w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
                   {hasMovie ? 'FILM ARCHIVED' : 'UNEXPOSED REEL'}
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 mt-4 sm:mt-5">
-              <h3 className="font-poster font-bold uppercase text-2xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
+            <div className="shrink-0 mt-3.5 sm:mt-5">
+              <h3 className="font-poster font-bold uppercase text-xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
                 {hasMovie ? movie?.title || 'UNTITLED FILM' : 'NO SCREENING'}
                 {hasMovie && movie?.year && (
-                  <span className="font-poster font-normal text-base sm:text-lg ml-2 opacity-60">
+                  <span className="font-poster font-normal text-sm sm:text-lg ml-2 opacity-60">
                     {movie.year}
                   </span>
                 )}
               </h3>
             </div>
 
-            <div className="shrink-0 mt-3 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
-              <div className="grid grid-cols-[96px_1fr]">
+            <div className="shrink-0 mt-2.5 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>directed by</span>
                 <span className="uppercase truncate">{hasMovie ? movie?.director || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>genre</span>
                 <span className="uppercase truncate">{hasMovie ? movie?.genre || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>rated</span>
                 <span className="uppercase">{hasMovie ? `${rating} / 10` : '—'}</span>
               </div>
@@ -479,7 +527,7 @@ export default function MonthlyShowcaseSlider({
           </div>
 
           <div
-            className="shrink-0 pt-3.5 mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
+            className="shrink-0 pt-3 mt-3 sm:pt-3.5 sm:mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
             style={{ borderColor: rule, color: muted }}
           >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs sm:text-sm">
@@ -504,7 +552,7 @@ export default function MonthlyShowcaseSlider({
 
       return (
         <div
-          className="w-full h-full rounded-md p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
+          className="w-full h-full rounded-md p-4 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
           style={{
             backgroundColor: paperBg,
             color: ink,
@@ -514,43 +562,40 @@ export default function MonthlyShowcaseSlider({
           }}
         >
           <div className="flex-1 min-h-0 flex flex-col">
-            <div
-              className="shrink-0 flex items-center justify-between pb-2.5 mb-3.5 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
-              style={{ borderColor: rule, color: muted }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
-                <span>{ownerTag}</span>
-              </span>
-              <span>02 · GAME PRINT · {shortDate}</span>
-            </div>
+            {cardHeader('02 · GAME PRINT')}
 
-            <div className="flex-1 min-h-[140px] w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
+            <div className="flex-1 min-h-0 w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
               {hasGame && image ? (
-                <img src={image} alt={game?.title || 'Game'} className="w-full h-full object-cover" />
+                <img
+                  src={image}
+                  alt={game?.title || 'Game'}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
                   {hasGame ? 'GAME ARCHIVED' : 'NO CARTRIDGE'}
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 mt-4 sm:mt-5">
-              <h3 className="font-poster font-bold uppercase text-2xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
+            <div className="shrink-0 mt-3.5 sm:mt-5">
+              <h3 className="font-poster font-bold uppercase text-xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
                 {hasGame ? game?.title || 'UNTITLED GAME' : 'STANDBY'}
               </h3>
             </div>
 
-            <div className="shrink-0 mt-3 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
-              <div className="grid grid-cols-[96px_1fr]">
+            <div className="shrink-0 mt-2.5 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>studio</span>
                 <span className="uppercase truncate">{hasGame ? game?.developer || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>genre</span>
                 <span className="uppercase truncate">{hasGame ? game?.genre || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>rated</span>
                 <span className="uppercase">{hasGame ? `${rating} / 10` : '—'}</span>
               </div>
@@ -558,7 +603,7 @@ export default function MonthlyShowcaseSlider({
           </div>
 
           <div
-            className="shrink-0 pt-3.5 mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
+            className="shrink-0 pt-3 mt-3 sm:pt-3.5 sm:mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
             style={{ borderColor: rule, color: muted }}
           >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs sm:text-sm">
@@ -583,7 +628,7 @@ export default function MonthlyShowcaseSlider({
 
       return (
         <div
-          className="w-full h-full rounded-md p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
+          className="w-full h-full rounded-md p-4 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
           style={{
             backgroundColor: paperBg,
             color: ink,
@@ -593,43 +638,40 @@ export default function MonthlyShowcaseSlider({
           }}
         >
           <div className="flex-1 min-h-0 flex flex-col">
-            <div
-              className="shrink-0 flex items-center justify-between pb-2.5 mb-3.5 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
-              style={{ borderColor: rule, color: muted }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
-                <span>{ownerTag}</span>
-              </span>
-              <span>03 · PLAT DU MOIS · {shortDate}</span>
-            </div>
+            {cardHeader('03 · PLAT DU MOIS')}
 
-            <div className="flex-1 min-h-[140px] w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
+            <div className="flex-1 min-h-0 w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
               {hasFood && image ? (
-                <img src={image} alt={food?.title || 'Dish'} className="w-full h-full object-cover" />
+                <img
+                  src={image}
+                  alt={food?.title || 'Dish'}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
                   {hasFood ? 'DISH PLATED' : 'UNSERVED COURSE'}
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 mt-4 sm:mt-5">
-              <h3 className="font-poster font-bold uppercase text-2xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
+            <div className="shrink-0 mt-3.5 sm:mt-5">
+              <h3 className="font-poster font-bold uppercase text-xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
                 {hasFood ? food?.title || 'SIGNATURE DISH' : 'UNSERVED COURSE'}
               </h3>
             </div>
 
-            <div className="shrink-0 mt-3 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
-              <div className="grid grid-cols-[96px_1fr]">
+            <div className="shrink-0 mt-2.5 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>maison</span>
                 <span className="uppercase truncate">{hasFood ? food?.restaurant || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>cuisine</span>
                 <span className="uppercase truncate">{hasFood ? food?.genre || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>rated</span>
                 <span className="uppercase">{hasFood ? `${rating} / 10` : '—'}</span>
               </div>
@@ -637,7 +679,7 @@ export default function MonthlyShowcaseSlider({
           </div>
 
           <div
-            className="shrink-0 pt-3.5 mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
+            className="shrink-0 pt-3 mt-3 sm:pt-3.5 sm:mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
             style={{ borderColor: rule, color: muted }}
           >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs sm:text-sm">
@@ -662,7 +704,7 @@ export default function MonthlyShowcaseSlider({
 
       return (
         <div
-          className="w-full h-full rounded-md p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
+          className="w-full h-full rounded-md p-4 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
           style={{
             backgroundColor: paperBg,
             color: ink,
@@ -672,43 +714,40 @@ export default function MonthlyShowcaseSlider({
           }}
         >
           <div className="flex-1 min-h-0 flex flex-col">
-            <div
-              className="shrink-0 flex items-center justify-between pb-2.5 mb-3.5 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
-              style={{ borderColor: rule, color: muted }}
-            >
-              <span className="flex items-center gap-1.5">
-                <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
-                <span>{ownerTag}</span>
-              </span>
-              <span>04 · ARCHIVAL PRINT · {shortDate}</span>
-            </div>
+            {cardHeader('04 · ARCHIVAL PRINT')}
 
-            <div className="flex-1 min-h-[140px] w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
+            <div className="flex-1 min-h-0 w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
               {hasMemory && image ? (
-                <img src={image} alt={memory?.title || 'Memory'} className="w-full h-full object-cover" />
+                <img
+                  src={image}
+                  alt={memory?.title || 'Memory'}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                <div className="absolute inset-0 w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
                   {hasMemory ? 'PRINT ARCHIVED' : 'UNEXPOSED FRAME'}
                 </div>
               )}
             </div>
 
-            <div className="shrink-0 mt-4 sm:mt-5">
-              <h3 className="font-poster font-bold uppercase text-2xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
+            <div className="shrink-0 mt-3.5 sm:mt-5">
+              <h3 className="font-poster font-bold uppercase text-xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
                 {hasMemory ? memory?.title || 'UNTITLED MEMORY' : 'UNEXPOSED FRAME'}
               </h3>
             </div>
 
-            <div className="shrink-0 mt-3 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
-              <div className="grid grid-cols-[96px_1fr]">
+            <div className="shrink-0 mt-2.5 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>location</span>
                 <span className="uppercase truncate">{hasMemory ? memory?.location || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>mood / vibe</span>
                 <span className="uppercase truncate">{hasMemory ? memory?.genre || '—' : '—'}</span>
               </div>
-              <div className="grid grid-cols-[96px_1fr]">
+              <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>core index</span>
                 <span className="uppercase">{hasMemory ? `${rating} / 10` : '—'}</span>
               </div>
@@ -716,7 +755,7 @@ export default function MonthlyShowcaseSlider({
           </div>
 
           <div
-            className="shrink-0 pt-3.5 mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
+            className="shrink-0 pt-3 mt-3 sm:pt-3.5 sm:mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
             style={{ borderColor: rule, color: muted }}
           >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs sm:text-sm">
@@ -740,7 +779,7 @@ export default function MonthlyShowcaseSlider({
 
     return (
       <div
-        className="w-full h-full rounded-md p-5 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
+        className="w-full h-full rounded-md p-4 sm:p-7 lg:p-8 flex flex-col justify-between overflow-hidden transition-colors duration-700"
         style={{
           backgroundColor: paperBg,
           color: ink,
@@ -750,43 +789,40 @@ export default function MonthlyShowcaseSlider({
         }}
       >
         <div className="flex-1 min-h-0 flex flex-col">
-          <div
-            className="shrink-0 flex items-center justify-between pb-2.5 mb-3.5 border-b font-mono text-[10px] sm:text-[11px] tracking-[0.24em] uppercase"
-            style={{ borderColor: rule, color: muted }}
-          >
-            <span className="flex items-center gap-1.5">
-              <img src={ownerAvatar} alt="" className="w-4 h-4 object-contain" />
-              <span>{ownerTag}</span>
-            </span>
-            <span>05 · SONORITÉ · {shortDate}</span>
-          </div>
+          {cardHeader('05 · SONORITÉ')}
 
-          <div className="flex-1 min-h-[140px] w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
+          <div className="flex-1 min-h-0 w-full bg-black/85 overflow-hidden relative rounded-sm shadow-inner">
             {hasSong && image ? (
-              <img src={image} alt={song?.title || 'Song'} className="w-full h-full object-cover" />
+              <img
+                src={image}
+                alt={song?.title || 'Song'}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
             ) : (
-              <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
                 {hasSong ? 'RECORD ARCHIVED' : 'SILENT GROOVE'}
               </div>
             )}
           </div>
 
-          <div className="shrink-0 mt-4 sm:mt-5">
-            <h3 className="font-poster font-bold uppercase text-2xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
+          <div className="shrink-0 mt-3.5 sm:mt-5">
+            <h3 className="font-poster font-bold uppercase text-xl sm:text-3xl lg:text-[36px] tracking-tight leading-[0.98] truncate">
               {hasSong ? song?.title || 'UNTITLED TRACK' : 'NO TRACK'}
             </h3>
           </div>
 
-          <div className="shrink-0 mt-3 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
-            <div className="grid grid-cols-[96px_1fr]">
+          <div className="shrink-0 mt-2.5 sm:mt-4 space-y-1 font-poster text-xs sm:text-sm lg:text-[15px] tracking-wide">
+            <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
               <span className="lowercase" style={{ color: muted }}>artist</span>
               <span className="uppercase truncate">{hasSong ? song?.artist || '—' : '—'}</span>
             </div>
-            <div className="grid grid-cols-[96px_1fr]">
+            <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
               <span className="lowercase" style={{ color: muted }}>genre</span>
               <span className="uppercase truncate">{hasSong ? song?.genre || '—' : '—'}</span>
             </div>
-            <div className="grid grid-cols-[96px_1fr]">
+            <div className="grid grid-cols-[84px_1fr] sm:grid-cols-[96px_1fr]">
               <span className="lowercase" style={{ color: muted }}>rated</span>
               <span className="uppercase">{hasSong ? `${rating} / 10` : '—'}</span>
             </div>
@@ -794,7 +830,7 @@ export default function MonthlyShowcaseSlider({
         </div>
 
         <div
-          className="shrink-0 pt-3.5 mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
+          className="shrink-0 pt-3 mt-3 sm:pt-3.5 sm:mt-4 border-t flex items-center justify-between font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase"
           style={{ borderColor: rule, color: muted }}
         >
           <span className="truncate italic font-serif normal-case tracking-normal text-xs sm:text-sm">
@@ -811,7 +847,7 @@ export default function MonthlyShowcaseSlider({
   const content = (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[9999] w-screen h-screen overflow-hidden select-none touch-none transition-colors duration-700"
+      className="fixed inset-0 z-[9999] w-screen h-[100dvh] overflow-hidden select-none touch-none transition-colors duration-700"
       style={{
         backgroundColor: scene.base,
         backgroundImage: `linear-gradient(90deg, ${scene.left} 0%, ${scene.base} 50%, ${scene.right} 100%)`,
@@ -822,75 +858,80 @@ export default function MonthlyShowcaseSlider({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* Top & Bottom Cinematic Depth Vignettes */}
+      {/* Top & Bottom Cinematic Depth Vignettes (z-20, above z-10 stage) */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-28 sm:h-36 lg:h-44 z-30 transition-all duration-700"
+        className="pointer-events-none absolute inset-x-0 top-0 h-20 sm:h-36 lg:h-44 z-20 transition-all duration-700"
         style={{
-          background: `linear-gradient(180deg, ${scene.base} 0%, ${scene.base}e6 30%, transparent 100%)`,
+          background: `linear-gradient(180deg, ${scene.base} 0%, ${scene.base}e6 35%, transparent 100%)`,
         }}
       />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-28 sm:h-36 lg:h-44 z-30 transition-all duration-700"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 sm:h-36 lg:h-44 z-20 transition-all duration-700"
         style={{
-          background: `linear-gradient(0deg, ${scene.base} 0%, ${scene.base}e6 30%, transparent 100%)`,
+          background: `linear-gradient(0deg, ${scene.base} 0%, ${scene.base}e6 35%, transparent 100%)`,
         }}
       />
 
-      {/* Top Navigation Bar */}
-      <div className="absolute inset-x-0 top-5 sm:top-7 px-6 sm:px-12 z-40 flex items-center justify-between font-mono text-[11px] sm:text-xs tracking-[0.28em] uppercase">
+      {/* Top Navigation Bar (z-40, isolated above stage so buttons always receive taps) */}
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute inset-x-0 top-3.5 sm:top-7 px-4 sm:px-12 z-40 flex items-center justify-between gap-2 font-mono text-[10px] sm:text-xs tracking-[0.16em] sm:tracking-[0.28em] uppercase"
+      >
         <button
           type="button"
           onClick={handleClose}
-          className="hover:opacity-100 opacity-70 transition-opacity cursor-pointer flex items-center gap-2"
+          className="hover:opacity-100 opacity-75 transition-opacity cursor-pointer flex items-center gap-1.5 py-1.5 pr-2 shrink-0"
           title="Return to calendar"
         >
           <span>←</span>
-          <span>{monthName.toUpperCase()} {year}</span>
+          <span className="hidden xs:inline">{monthName.toUpperCase()}</span>
+          <span className="xs:hidden">{monthName.slice(0, 3).toUpperCase()}</span>
+          <span>{year}</span>
         </button>
 
         {/* Mobile Perspective Toggle (HIS / HERS) */}
-        <div className="md:hidden flex items-center gap-1 font-mono text-[10px] tracking-widest uppercase bg-black/25 dark:bg-white/10 backdrop-blur-md rounded-full p-1 border border-black/10 dark:border-white/15">
+        <div className="md:hidden flex items-center gap-1 font-mono text-[10px] tracking-wider uppercase bg-black/30 dark:bg-white/15 backdrop-blur-md rounded-full p-1 border border-white/15 shadow-sm">
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setMobilePerspective('his');
+              switchMobilePerspective('his');
             }}
             className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               mobilePerspective === 'his'
                 ? 'bg-white text-stone-900 font-bold shadow-xs'
-                : 'opacity-60 text-current'
+                : 'opacity-70 text-current'
             }`}
           >
-            <img src="/his.png" alt="His" className="w-4 h-4 object-contain" />
+            <img src="/his.png" alt="His" className="w-3.5 h-3.5 object-contain" />
             <span>HIS</span>
           </button>
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setMobilePerspective('her');
+              switchMobilePerspective('her');
             }}
             className={`px-3 py-1 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               mobilePerspective === 'her'
                 ? 'bg-white text-stone-900 font-bold shadow-xs'
-                : 'opacity-60 text-current'
+                : 'opacity-70 text-current'
             }`}
           >
-            <img src="/munto.png" alt="Hers" className="w-4 h-4 object-contain" />
+            <img src="/munto.png" alt="Hers" className="w-3.5 h-3.5 object-contain" />
             <span>HERS</span>
           </button>
         </div>
 
         {/* Active Category Code & Label + Close '✕' */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-6 shrink-0">
           <span className="opacity-70 hidden sm:inline">
             {SECTIONS[activeIndex].code} / 05 · {SECTIONS[activeIndex].label}
           </span>
           <button
             type="button"
             onClick={handleClose}
-            className="hover:opacity-100 opacity-70 transition-opacity cursor-pointer font-sans text-base leading-none p-1"
+            className="hover:opacity-100 opacity-75 transition-opacity cursor-pointer font-sans text-base sm:text-lg leading-none p-1.5"
             title="Close showcase (Esc)"
           >
             ✕
@@ -898,8 +939,11 @@ export default function MonthlyShowcaseSlider({
         </div>
       </div>
 
-      {/* Right Edge Category Dash Nav (click to navigate directly) */}
-      <div className="absolute right-4 sm:right-7 top-1/2 -translate-y-1/2 z-40 hidden sm:flex flex-col gap-2.5">
+      {/* Right Edge Category Dash Nav on Desktop / Tablet */}
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute right-3 sm:right-7 top-1/2 -translate-y-1/2 z-40 hidden sm:flex flex-col gap-2.5"
+      >
         {SECTIONS.map((sec, i) => {
           const isSelected = i === activeIndex;
           return (
@@ -922,46 +966,82 @@ export default function MonthlyShowcaseSlider({
         })}
       </div>
 
-      {/* Full-Screen Vertical Revolving Stage (DOM-Ref Driven at 120fps) */}
-      <div className="relative w-full h-full flex items-center justify-center px-4 sm:px-8 lg:px-14">
-        <div className="relative w-full max-w-[1320px] h-[72vh] min-h-[460px] max-h-[680px] flex items-center justify-center">
-          {SECTIONS.map((section, idx) => (
-            <div
-              key={section.slug}
-              ref={(el) => {
-                sectionRefs.current[idx] = el;
-              }}
-              onClick={() => {
-                const rawDiff = idx - currentPosRef.current;
-                const offset =
-                  ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) % NUM_SECTIONS) -
-                    NUM_SECTIONS / 2);
-                if (Math.abs(offset) >= 0.35 && Math.abs(offset) < 1.35) {
-                  if (offset > 0) stepNext();
-                  else stepPrev();
-                }
-              }}
-              className="w-full h-full absolute inset-0 will-change-[transform,opacity]"
-            >
-              {/* Side-by-Side Pure Minimalist Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 items-stretch w-full h-full">
-                <div
-                  className={`w-full h-full ${
-                    mobilePerspective === 'his' ? 'block' : 'hidden md:block'
+      {/* Mobile Bottom Category Pill Bar (z-40) */}
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        className="sm:hidden absolute inset-x-0 bottom-3.5 z-40 flex items-center justify-center gap-2 px-4"
+      >
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/25 dark:bg-white/10 backdrop-blur-md border border-white/10">
+          {SECTIONS.map((sec, i) => {
+            const isSelected = i === activeIndex;
+            return (
+              <button
+                key={sec.slug}
+                type="button"
+                onClick={() => goToSection(i)}
+                className="p-1 cursor-pointer"
+                aria-label={sec.label}
+              >
+                <span
+                  className={`block transition-all duration-300 rounded-full ${
+                    isSelected ? 'w-5 h-1.5 bg-current opacity-95' : 'w-1.5 h-1.5 bg-current opacity-35'
                   }`}
-                >
-                  {renderPureCard('his', hisData, section.slug)}
-                </div>
-                <div
-                  className={`w-full h-full ${
-                    mobilePerspective === 'her' ? 'block' : 'hidden md:block'
-                  }`}
-                >
-                  {renderPureCard('her', herData, section.slug)}
+                />
+              </button>
+            );
+          })}
+          <span className="ml-1.5 font-mono text-[9px] tracking-widest uppercase opacity-75">
+            {SECTIONS[activeIndex].code}/05
+          </span>
+        </div>
+      </div>
+
+      {/* Full-Screen Vertical Revolving Stage (Isolated in z-10 stacking context) */}
+      <div className="relative z-10 w-full h-full flex items-center justify-center px-3.5 sm:px-8 lg:px-14 pt-12 pb-12 sm:py-0">
+        <div className="relative w-full max-w-[1320px] h-[68dvh] sm:h-[72vh] min-h-[390px] sm:min-h-[460px] max-h-[680px] flex items-center justify-center">
+          {SECTIONS.map((section, idx) => {
+            // Provide initial inline style so first render before rAF never overlaps cards
+            const initialStyle = computeSectionStyle(idx, currentPosRef.current);
+            return (
+              <div
+                key={section.slug}
+                ref={(el) => {
+                  sectionRefs.current[idx] = el;
+                }}
+                onClick={() => {
+                  const rawDiff = idx - currentPosRef.current;
+                  const offset =
+                    ((((rawDiff % NUM_SECTIONS) + NUM_SECTIONS + NUM_SECTIONS / 2) %
+                      NUM_SECTIONS) -
+                      NUM_SECTIONS / 2);
+                  if (Math.abs(offset) >= 0.35 && Math.abs(offset) < 1.25) {
+                    if (offset > 0) stepNext();
+                    else stepPrev();
+                  }
+                }}
+                style={initialStyle}
+                className="w-full h-full absolute inset-0 will-change-[transform,opacity]"
+              >
+                {/* Side-by-Side Pure Minimalist Cards */}
+                <div className="grid grid-cols-1 grid-rows-1 md:grid-cols-2 gap-6 lg:gap-10 items-stretch w-full h-full min-h-0 overflow-hidden">
+                  <div
+                    className={`w-full h-full min-h-0 overflow-hidden ${
+                      mobilePerspective === 'his' ? 'block' : 'hidden md:block'
+                    }`}
+                  >
+                    {renderPureCard('his', hisData, section.slug)}
+                  </div>
+                  <div
+                    className={`w-full h-full min-h-0 overflow-hidden ${
+                      mobilePerspective === 'her' ? 'block' : 'hidden md:block'
+                    }`}
+                  >
+                    {renderPureCard('her', herData, section.slug)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

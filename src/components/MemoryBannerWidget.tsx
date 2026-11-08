@@ -198,7 +198,7 @@ export default function MemoryBannerWidget({
         style={{ minHeight: '820px' }}
       >
         <div
-          className="w-full relative rounded-md"
+          className="w-full relative grid grid-cols-1 rounded-md"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -210,8 +210,8 @@ export default function MemoryBannerWidget({
               FRONT SIDE: Minimalist Memory Poster Print
              ======================================================== */}
           <div
-            className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
-              isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
+            className={`[grid-area:1/1] w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-all duration-500 ${
+              isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
             }`}
             style={{
               backgroundColor: paperBg,
@@ -532,8 +532,8 @@ export default function MemoryBannerWidget({
               BACK SIDE: Poster-Print Time Capsule Stub + Field Notes
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
-              isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
+            className={`[grid-area:1/1] w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-all duration-500 ${
+              isFlipped ? 'pointer-events-auto z-30 opacity-100' : 'pointer-events-none z-0 opacity-0'
             }`}
             style={{
               backgroundColor: paperBg,

@@ -266,7 +266,7 @@ export default function SongBannerWidget({
         style={{ minHeight: '780px' }}
       >
         <div
-          className="w-full relative rounded-[34px]"
+          className="w-full relative grid grid-cols-1 rounded-[34px]"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -278,8 +278,8 @@ export default function SongBannerWidget({
               FRONT SIDE: Apple Music "Now Playing" Glassmorphic Sheet
              ======================================================== */}
           <div
-            className={`w-full rounded-[34px] p-6 sm:p-8 relative border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden ${
-              isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
+            className={`[grid-area:1/1] w-full rounded-[34px] p-5 sm:p-8 relative border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden transition-opacity duration-300 ${
+              isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
             }`}
             style={{
               boxShadow: isDark
@@ -623,8 +623,8 @@ export default function SongBannerWidget({
               BACK SIDE: Apple Music "Live Lyrics" Glass View & Codes Dock
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-[34px] p-6 sm:p-8 border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden ${
-              isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
+            className={`[grid-area:1/1] w-full rounded-[34px] p-5 sm:p-8 relative border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden transition-opacity duration-300 ${
+              isFlipped ? 'pointer-events-auto z-30 opacity-100' : 'pointer-events-none z-0 opacity-0'
             }`}
             style={{
               boxShadow: isDark

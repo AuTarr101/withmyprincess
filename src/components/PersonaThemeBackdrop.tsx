@@ -75,12 +75,10 @@ export default function PersonaThemeBackdrop() {
         />
       </div>
 
-      {/* 2. Left & Right Slide-Out Persona Cutout Portraits */}
+      {/* 2. Left & Right Slide-Out Persona Cutout Portraits (Always behind main z-10 content) */}
       <div
         aria-hidden="true"
-        className={`fixed inset-0 pointer-events-none overflow-hidden transition-all duration-500 ${
-          transitionPulse ? 'z-30' : 'z-[2]'
-        }`}
+        className="fixed inset-0 pointer-events-none overflow-hidden transition-all duration-500 z-[2]"
       >
         {/* Gentle Kinetic Sweep Curtain on Switch */}
         <div
@@ -120,7 +118,7 @@ export default function PersonaThemeBackdrop() {
         >
           {/* Softened cobalt glow behind his silhouette */}
           <div
-            className="absolute -left-10 bottom-8 w-72 h-72 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
+            className="absolute -left-10 bottom-8 w-56 h-56 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
             style={{
               background: isDark
                 ? 'radial-gradient(circle, rgba(32, 108, 232, 0.24) 0%, transparent 70%)'
@@ -130,8 +128,9 @@ export default function PersonaThemeBackdrop() {
           <img
             src="/his-theme.png"
             alt="His theme portrait"
-            className={`relative h-[50vh] sm:h-[64vh] lg:h-[78vh] max-h-[760px] w-auto object-contain object-left-bottom select-none transition-opacity duration-500 ${
-              transitionPulse ? 'opacity-95' : 'opacity-80 sm:opacity-90'
+            decoding="async"
+            className={`relative h-[40vh] sm:h-[64vh] lg:h-[78vh] max-h-[760px] w-auto object-contain object-left-bottom select-none transition-opacity duration-500 ${
+              transitionPulse ? 'opacity-70 sm:opacity-95' : 'opacity-45 sm:opacity-85'
             }`}
             style={{
               filter: isDark
@@ -155,7 +154,7 @@ export default function PersonaThemeBackdrop() {
         >
           {/* Softened rose-pink glow behind her silhouette */}
           <div
-            className="absolute -right-10 bottom-8 w-72 h-72 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
+            className="absolute -right-10 bottom-8 w-56 h-56 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
             style={{
               background: isDark
                 ? 'radial-gradient(circle, rgba(218, 64, 125, 0.22) 0%, transparent 70%)'
@@ -165,8 +164,9 @@ export default function PersonaThemeBackdrop() {
           <img
             src="/her-theme.png"
             alt="Her theme portrait"
-            className={`relative h-[52vh] sm:h-[66vh] lg:h-[80vh] max-h-[780px] w-auto object-contain object-right-bottom select-none transition-opacity duration-500 ${
-              transitionPulse ? 'opacity-95' : 'opacity-80 sm:opacity-90'
+            decoding="async"
+            className={`relative h-[42vh] sm:h-[66vh] lg:h-[80vh] max-h-[780px] w-auto object-contain object-right-bottom select-none transition-opacity duration-500 ${
+              transitionPulse ? 'opacity-70 sm:opacity-95' : 'opacity-45 sm:opacity-85'
             }`}
             style={{
               filter: isDark
