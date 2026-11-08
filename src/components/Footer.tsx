@@ -48,7 +48,7 @@ export default function Footer() {
           </h3>
 
           {/* Counting Clock: Frosted Shower-Glass Pill */}
-          <div className="inline-flex items-center justify-center gap-3 sm:gap-4 px-6 py-3 rounded-2xl bg-white/45 dark:bg-white/[0.06] backdrop-blur-xl border border-white/65 dark:border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),0_4px_16px_rgba(60,30,45,0.06)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_6px_20px_rgba(0,0,0,0.35)]">
+          <div className="inline-flex items-center justify-center gap-3 sm:gap-4 px-6 py-3 rounded-2xl bg-white/25 dark:bg-white/[0.03] backdrop-blur-xl border border-white/55 dark:border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.6),0_4px_16px_rgba(60,30,45,0.05)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.10),0_6px_20px_rgba(0,0,0,0.3)]">
             <div className="text-center min-w-[36px]">
               <span className="font-serif text-lg sm:text-2xl font-bold text-wine-800 dark:text-rose-100 block leading-none">
                 {elapsed.days}
