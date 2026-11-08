@@ -10,7 +10,6 @@ import {
   getQrCodeImageUrl,
 } from '@/lib/media-helper';
 import {
-  Star,
   Trash2,
   ExternalLink,
   Repeat,
@@ -21,10 +20,14 @@ import {
   AlertTriangle,
   Play,
   Pause,
-  Sparkles,
   Quote,
-  Volume2,
 } from 'lucide-react';
+
+// Sculpted 28-bar acoustic waveform profile (heights in %)
+const AUDIO_WAVE_HEIGHTS = [
+  34, 56, 44, 78, 62, 92, 52, 84, 100, 68, 46, 88, 74, 96,
+  58, 42, 82, 94, 66, 50, 86, 72, 90, 60, 48, 76, 54, 38,
+];
 
 interface SongBannerWidgetProps {
   song: MusicLogEntry;
@@ -143,9 +146,10 @@ export default function SongBannerWidget({
     }
   };
 
-  const handleStarClick = (starIndex: number) => {
+  const handleWaveBarClick = (barIndex: number, totalBars: number) => {
     if (!isEditing) return;
-    const newRating = starIndex;
+    const rawRating = ((barIndex + 1) / totalBars) * 10;
+    const newRating = Math.round(rawRating * 10) / 10;
     setRatingInput(newRating.toFixed(1));
     updateMonthSongRating(monthId, newRating);
   };
@@ -155,7 +159,7 @@ export default function SongBannerWidget({
 
   const currentRating = song.rating ?? 9.5;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
-  const ratingPercent = Math.min(100, Math.max(8, (displayRating / 10) * 100));
+  const ratingPercent = Math.min(100, Math.max(0, (displayRating / 10) * 100));
 
   // Scannable codes synced to Dark / Light theme
   const spotifyUri = getSpotifyUri(song.url) || getSpotifyUri(song.spotifyUrl);
@@ -263,7 +267,7 @@ export default function SongBannerWidget({
       {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2200px] select-none"
-        style={{ minHeight: '780px' }}
+        style={{ minHeight: '730px' }}
       >
         <div
           className="w-full relative grid grid-cols-1 rounded-[34px]"
@@ -271,14 +275,14 @@ export default function SongBannerWidget({
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             transition: 'transform 0.78s cubic-bezier(0.22, 1, 0.36, 1)',
-            minHeight: '780px',
+            minHeight: '730px',
           }}
         >
           {/* ========================================================
               FRONT SIDE: Apple Music "Now Playing" Glassmorphic Sheet
              ======================================================== */}
           <div
-            className={`[grid-area:1/1] w-full rounded-[34px] p-5 sm:p-8 relative border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden transition-opacity duration-300 ${
+            className={`[grid-area:1/1] w-full rounded-[34px] p-6 sm:p-8 relative border border-white/65 dark:border-white/15 flex flex-col justify-between overflow-hidden transition-opacity duration-300 ${
               isFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
             }`}
             style={{
@@ -288,69 +292,60 @@ export default function SongBannerWidget({
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
-              minHeight: '780px',
+              minHeight: '730px',
             }}
           >
             {renderAppleMusicGlassBackdrop()}
 
-            {/* Top Sheet Grabber & Header Controls */}
+            {/* Top Sheet Grabber & Header Controls (Clean right-aligned actions) */}
             <div className="relative z-10">
               {/* Apple Music Sheet Grabber */}
-              <div className="w-10 h-1 rounded-full bg-stone-900/20 dark:bg-white/25 mx-auto mb-4" />
+              <div className="w-10 h-1 rounded-full bg-stone-900/20 dark:bg-white/25 mx-auto mb-3.5" />
 
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-[0.18em] bg-white/35 dark:bg-white/10 border border-white/50 dark:border-white/12 text-stone-700 dark:text-white/80 backdrop-blur-md">
-                    <Volume2 className="w-3 h-3 opacity-75" />
-                    <span>Now Playing</span>
-                  </span>
-                </div>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleEdit}
+                  className={
+                    isEditing
+                      ? 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer active:scale-95 bg-wine-700 text-white dark:bg-rose-400 dark:text-stone-950 shadow-sm'
+                      : glassPill
+                  }
+                  title={isEditing ? 'Save and lock edits' : 'Edit song details and rating'}
+                >
+                  {isEditing ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Done</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onToggleEdit}
-                    className={
-                      isEditing
-                        ? 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer active:scale-95 bg-wine-700 text-white dark:bg-rose-400 dark:text-stone-950 shadow-sm'
-                        : glassPill
-                    }
-                    title={isEditing ? 'Save and lock edits' : 'Edit song details and rating'}
-                  >
-                    {isEditing ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Done</span>
-                      </>
-                    ) : (
-                      <>
-                        <Pencil className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsPlayingEmbed(false);
-                      setIsFlipped(true);
-                    }}
-                    className={`group ${glassPill}`}
-                    title="Flip to Apple Music Live Lyrics & Notes view"
-                  >
-                    <Quote className="w-3.5 h-3.5 opacity-80 group-hover:scale-110 transition-transform" />
-                    <span>Lyrics &amp; Notes</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPlayingEmbed(false);
+                    setIsFlipped(true);
+                  }}
+                  className={`group ${glassPill}`}
+                  title="Flip to Apple Music Live Lyrics & Notes view"
+                >
+                  <Quote className="w-3.5 h-3.5 opacity-80 group-hover:scale-110 transition-transform" />
+                  <span>Lyrics &amp; Notes</span>
+                </button>
               </div>
             </div>
 
             {/* 1. Floating Square Album Cover / Inline Player */}
-            <div className="relative z-10 my-5 flex flex-col items-center">
+            <div className="relative z-10 my-6 flex flex-col items-center">
               <div
-                className={`relative w-full max-w-[330px] aspect-square rounded-[26px] overflow-hidden border border-white/50 dark:border-white/15 bg-stone-900 transition-transform duration-500 ease-out ${
+                className={`relative w-full max-w-[340px] aspect-square rounded-[26px] overflow-hidden border border-white/50 dark:border-white/15 bg-stone-900 transition-transform duration-500 ease-out ${
                   isPlayingEmbed ? 'scale-100' : 'hover:scale-[1.015]'
                 }`}
                 style={{
@@ -417,7 +412,7 @@ export default function SongBannerWidget({
 
               {/* Optional Cover Art URL input while editing */}
               {isEditing && (
-                <div className="w-full max-w-[330px] mt-3">
+                <div className="w-full max-w-[340px] mt-3">
                   <input
                     type="url"
                     value={thumbInput}
@@ -430,8 +425,8 @@ export default function SongBannerWidget({
               )}
             </div>
 
-            {/* 2. Apple Music Track Info + Scrubber + Rating Controls */}
-            <div className="relative z-10 space-y-4">
+            {/* 2. Apple Music Track Info + Audio Waveform Rating Dock */}
+            <div className="relative z-10 space-y-5">
               {/* Left-Aligned Title & Artist Row */}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
@@ -484,54 +479,54 @@ export default function SongBannerWidget({
                 )}
               </div>
 
-              {/* Apple Music Scrubber Bar (Synced to Rating Score) */}
-              <div className="space-y-1.5 pt-1">
-                <div className="w-full h-1.5 rounded-full bg-stone-900/12 dark:bg-white/15 overflow-hidden backdrop-blur-xs">
+              {/* Frosted Glass Audio Wave Rating & Notes Dock */}
+              <div className="rounded-2xl p-4 bg-white/35 dark:bg-white/[0.07] backdrop-blur-xl border border-white/55 dark:border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Percentage-Filled Audio Waveform Visualizer */}
                   <div
-                    className="h-full rounded-full bg-stone-800/80 dark:bg-white/90 transition-all duration-300"
-                    style={{ width: `${ratingPercent}%` }}
-                  />
-                </div>
-                <div className="flex items-center justify-between font-mono text-[10px] tracking-wider text-stone-500 dark:text-white/50">
-                  <span>{monthId}</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-stone-900/8 dark:bg-white/10 text-[9px] font-semibold uppercase tracking-[0.16em]">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>Lossless · {currentRating.toFixed(1)}/10</span>
-                  </span>
-                  <span>-00:00</span>
-                </div>
-              </div>
+                    className="flex-1 flex items-center gap-[3px] sm:gap-1 h-7 py-0.5"
+                    onMouseLeave={() => isEditing && setHoverRating(null)}
+                    title={
+                      isEditing
+                        ? 'Click along the audio wave to set rating'
+                        : `Rated ${currentRating.toFixed(1)}/10 (${Math.round(ratingPercent)}%)`
+                    }
+                  >
+                    {AUDIO_WAVE_HEIGHTS.map((heightPct, idx) => {
+                      const totalBars = AUDIO_WAVE_HEIGHTS.length;
+                      const barStartPct = (idx / totalBars) * 100;
+                      const barEndPct = ((idx + 1) / totalBars) * 100;
+                      const isFilled = ratingPercent >= barEndPct;
+                      const isPartial = !isFilled && ratingPercent > barStartPct;
+                      const hoverScore =
+                        Math.round((((idx + 1) / totalBars) * 10) * 10) / 10;
 
-              {/* Frosted Glass Rating & Controls Dock */}
-              <div className="rounded-2xl p-3.5 bg-white/35 dark:bg-white/[0.07] backdrop-blur-xl border border-white/55 dark:border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
-                      <button
-                        key={starIndex}
-                        type="button"
-                        disabled={!isEditing}
-                        onClick={() => handleStarClick(starIndex)}
-                        onMouseEnter={() => isEditing && setHoverRating(starIndex)}
-                        onMouseLeave={() => isEditing && setHoverRating(null)}
-                        className={`p-0.5 transition-transform ${
-                          isEditing ? 'hover:scale-125 cursor-pointer' : 'cursor-default'
-                        }`}
-                        title={isEditing ? `Rate ${starIndex}/10` : 'Click Edit to adjust rating'}
-                      >
-                        <Star
-                          className={`w-4 h-4 ${
-                            starIndex <= displayRating
-                              ? 'text-amber-500 dark:text-amber-400 fill-amber-500 dark:fill-amber-400 drop-shadow-[0_0_5px_rgba(245,158,11,0.3)]'
-                              : 'text-stone-400/40 dark:text-white/20'
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          disabled={!isEditing}
+                          onClick={() => handleWaveBarClick(idx, totalBars)}
+                          onMouseEnter={() => isEditing && setHoverRating(hoverScore)}
+                          style={{ height: `${heightPct}%` }}
+                          className={`flex-1 min-w-[3px] rounded-full transition-all duration-200 ${
+                            isEditing ? 'cursor-pointer hover:scale-y-110' : 'cursor-default'
+                          } ${
+                            isFilled
+                              ? 'bg-stone-900/85 dark:bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)]'
+                              : isPartial
+                              ? 'bg-stone-900/50 dark:bg-white/55'
+                              : 'bg-stone-900/14 dark:bg-white/14'
                           }`}
+                          aria-label={`Rate ${hoverScore} out of 10`}
                         />
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
 
+                  {/* Right Side: Rating Percentage / Score Readout or Decimal Input */}
                   {isEditing ? (
-                    <div className="flex items-center gap-1 bg-white/50 dark:bg-black/40 px-2.5 py-0.5 rounded-lg border border-white/60 dark:border-white/20">
+                    <div className="shrink-0 flex items-center gap-1 bg-white/55 dark:bg-black/40 px-2.5 py-1 rounded-xl border border-white/60 dark:border-white/20">
                       <input
                         type="number"
                         step="0.1"
@@ -539,16 +534,19 @@ export default function SongBannerWidget({
                         max="10"
                         value={ratingInput}
                         onChange={handleRatingInputChange}
-                        className="w-11 bg-transparent text-xs sm:text-sm font-mono font-bold text-stone-900 dark:text-amber-300 outline-none text-center"
+                        className="w-11 bg-transparent text-xs sm:text-sm font-mono font-bold text-stone-900 dark:text-rose-200 outline-none text-center"
                         title="Edit decimal rating"
                       />
                       <span className="font-mono text-[11px] opacity-60">/10</span>
                     </div>
                   ) : (
-                    <span className="font-mono text-xs sm:text-sm font-bold text-stone-800 dark:text-white/90 flex items-center gap-1">
-                      <span>{currentRating.toFixed(1)} / 10</span>
+                    <div className="shrink-0 flex items-center gap-1.5 font-mono text-xs sm:text-sm font-bold text-stone-800 dark:text-white/90 pl-1">
+                      <span>{currentRating.toFixed(1)}/10</span>
+                      <span className="text-[10px] font-normal opacity-55">
+                        ({Math.round(ratingPercent)}%)
+                      </span>
                       <Lock className="w-3 h-3 opacity-35" />
-                    </span>
+                    </div>
                   )}
                 </div>
 
@@ -559,7 +557,7 @@ export default function SongBannerWidget({
                     setIsPlayingEmbed(false);
                     setIsFlipped(true);
                   }}
-                  className="w-full text-left pt-1.5 border-t border-stone-900/10 dark:border-white/10 flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-white/65 hover:text-stone-900 dark:hover:text-white transition-colors cursor-pointer"
+                  className="w-full text-left pt-2 border-t border-stone-900/10 dark:border-white/10 flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-white/65 hover:text-stone-900 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   <span className="truncate italic font-serif">
                     {reasonText.trim()
@@ -633,7 +631,7 @@ export default function SongBannerWidget({
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              minHeight: '780px',
+              minHeight: '730px',
             }}
           >
             {renderAppleMusicGlassBackdrop()}
