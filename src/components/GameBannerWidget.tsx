@@ -64,9 +64,6 @@ export default function GameBannerWidget({
   const [yearInput, setYearInput] = useState(game.year || '');
   const [hoursInput, setHoursInput] = useState(game.hoursPlayed || '');
   const [statusInput, setStatusInput] = useState(game.completionStatus || '');
-  const [starringInput, setStarringInput] = useState(
-    game.hisRole && game.herRole ? `${game.hisRole}, ${game.herRole}` : ''
-  );
   const [stillUrlInput, setStillUrlInput] = useState(game.stillUrl || '');
 
   // Media still: click play to swap the still for the gameplay/trailer embed
@@ -95,9 +92,6 @@ export default function GameBannerWidget({
     setYearInput(game.year || '');
     setHoursInput(game.hoursPlayed || '');
     setStatusInput(game.completionStatus || '');
-    setStarringInput(
-      game.hisRole && game.herRole ? `${game.hisRole}, ${game.herRole}` : ''
-    );
     setStillUrlInput(game.stillUrl || '');
   }, [
     game.title,
@@ -107,8 +101,6 @@ export default function GameBannerWidget({
     game.year,
     game.hoursPlayed,
     game.completionStatus,
-    game.hisRole,
-    game.herRole,
     game.stillUrl,
   ]);
 
@@ -146,7 +138,6 @@ export default function GameBannerWidget({
   };
 
   const handleDetailBlur = () => {
-    const roles = starringInput.split(',').map((s) => s.trim());
     updateMonthGameDetails(monthId, {
       title: titleInput.trim() || 'Untitled Game',
       developer: developerInput.trim() || 'Game Studio',
@@ -155,8 +146,8 @@ export default function GameBannerWidget({
       year: yearInput.trim() || undefined,
       hoursPlayed: hoursInput.trim() || undefined,
       completionStatus: statusInput.trim() || undefined,
-      hisRole: roles[0] || undefined,
-      herRole: roles[1] || undefined,
+      hisRole: game.hisRole,
+      herRole: game.herRole,
       stillUrl: stillUrlInput.trim() || undefined,
     });
     triggerSavedBadge();
@@ -500,37 +491,11 @@ export default function GameBannerWidget({
                   </div>
                 ) : (
                   <span className="uppercase flex items-center gap-1.5">
-                    <span>🎮 {currentRating.toFixed(1)} / 10</span>
+                    <span>{currentRating.toFixed(1)} / 10</span>
                     <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* ========================================================
-                4. PLAYERS (mirrors Movie's "starring" line)
-               ======================================================== */}
-            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
-              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
-                players
-              </span>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={starringInput}
-                  onChange={(e) => setStarringInput(e.target.value)}
-                  onBlur={handleDetailBlur}
-                  placeholder="Google (P1), Nami (P2)..."
-                  className={editField}
-                  style={{ borderColor: ruleColor, color: inkColor }}
-                />
-              ) : game.hisRole && game.herRole ? (
-                <span className="uppercase tracking-wider">
-                  {game.hisRole} &nbsp;·&nbsp; {game.herRole}
-                </span>
-              ) : (
-                <span className="uppercase tracking-wider">Google (P1) &nbsp;·&nbsp; Nami (P2)</span>
-              )}
             </div>
 
             {/* Footer: couple print stamp · open link · remove */}
@@ -666,7 +631,7 @@ export default function GameBannerWidget({
                   { label: 'developer', value: game.developer || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
                   { label: 'status', value: game.completionStatus || game.hoursPlayed || '100% Completed ♡' },
-                  { label: 'rated', value: `🎮 ${currentRating.toFixed(1)} / 10` },
+                  { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
                     key={row.label}

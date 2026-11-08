@@ -445,7 +445,7 @@ export default function MonthlyShowcaseSlider({
               </div>
               <div className="grid grid-cols-[92px_1fr]">
                 <span className="lowercase" style={{ color: muted }}>core index</span>
-                <span className="uppercase">{hasMemory ? `♡ ${rating} / 10` : '—'}</span>
+                <span className="uppercase">{hasMemory ? `${rating} / 10` : '—'}</span>
               </div>
             </div>
           </div>

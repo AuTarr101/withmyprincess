@@ -501,7 +501,7 @@ export default function MovieBannerWidget({
                   </div>
                 ) : (
                   <span className="uppercase flex items-center gap-1.5">
-                    <span>🍿 {currentRating.toFixed(1)} / 10</span>
+                    <span>{currentRating.toFixed(1)} / 10</span>
                     <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
@@ -672,7 +672,7 @@ export default function MovieBannerWidget({
                   { label: 'directed by', value: movie.director || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
                   { label: 'seats', value: 'Row G · 1 & 2' },
-                  { label: 'rated', value: `🍿 ${currentRating.toFixed(1)} / 10` },
+                  { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
                     key={row.label}

@@ -503,21 +503,11 @@ export default function FoodBannerWidget({
                   </div>
                 ) : (
                   <span className="uppercase flex items-center gap-1.5">
-                    <span>🍷 {currentRating.toFixed(1)} / 10</span>
+                    <span>{currentRating.toFixed(1)} / 10</span>
                     <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* ========================================================
-                4. TABLE (mirrors Movie's "starring" line)
-               ======================================================== */}
-            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
-              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
-                table
-              </span>
-              <span className="uppercase tracking-wider">GOOGLE &nbsp;·&nbsp; NAMI &nbsp;(TABLE N° 02)</span>
             </div>
 
             {/* Footer: couple print stamp · open link · remove */}
@@ -647,7 +637,7 @@ export default function FoodBannerWidget({
                   { label: 'restaurant', value: food.restaurant || '—' },
                   { label: 'date', value: `${monthName} ${year}` },
                   { label: 'table', value: 'Table N° 02 · For Two ♡' },
-                  { label: 'rated', value: `🍷 ${currentRating.toFixed(1)} / 10` },
+                  { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
                     key={row.label}

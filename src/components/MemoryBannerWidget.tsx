@@ -468,21 +468,11 @@ export default function MemoryBannerWidget({
                   </div>
                 ) : (
                   <span className="uppercase flex items-center gap-1.5">
-                    <span>♡ {currentRating.toFixed(1)} / 10</span>
+                    <span>{currentRating.toFixed(1)} / 10</span>
                     <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
-            </div>
-
-            {/* ========================================================
-                4. SUBJECTS (mirrors Movie's "starring" line)
-               ======================================================== */}
-            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
-              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
-                subjects
-              </span>
-              <span className="uppercase tracking-wider">GOOGLE &nbsp;·&nbsp; NAMI</span>
             </div>
 
             {/* Footer: couple print stamp · open link · remove */}
@@ -612,7 +602,7 @@ export default function MemoryBannerWidget({
                   { label: 'location', value: memory.location || `${monthName} ${year}` },
                   { label: 'date', value: `${monthName} ${year}` },
                   { label: 'frame', value: `Roll ${year} · Frame 24A` },
-                  { label: 'rated', value: `♡ ${currentRating.toFixed(1)} / 10` },
+                  { label: 'rated', value: `${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
                     key={row.label}
