@@ -43,10 +43,6 @@ export default function PerspectiveSplit() {
               alt="His logo"
               className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1"
             />
-            {/* Hover Word on top */}
-            <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#5C2314] dark:text-amber-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
-              view his&apos;s
-            </span>
           </div>
 
           <p className="text-xs text-warmText-light/80 dark:text-[#A8969E] font-serif italic mt-1">
@@ -54,7 +50,7 @@ export default function PerspectiveSplit() {
           </p>
         </button>
 
-        {/* Right Side: Hers (Munto) */}
+        {/* Right Side: Hers (Nami) */}
         <button
           type="button"
           onClick={() => setActivePerspective('her')}
@@ -82,17 +78,13 @@ export default function PerspectiveSplit() {
           <div className="relative flex items-center justify-center my-4 pointer-events-none">
             <img
               src="/munto.png"
-              alt="Munto logo"
+              alt="Nami logo"
               className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-1"
             />
-            {/* Hover Word on top */}
-            <span className="absolute z-10 font-serif text-lg sm:text-xl font-extrabold tracking-wide text-[#701A30] dark:text-rose-100 transition-all duration-300 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 whitespace-nowrap bg-white/90 dark:bg-black/85 px-3.5 py-1 rounded-full shadow-sm backdrop-blur-xs">
-              view her&apos;s
-            </span>
           </div>
 
           <p className="text-xs text-warmText-light/80 dark:text-[#A8969E] font-serif italic mt-1">
-            Munto • Her rankings &amp; memories
+            Nami • Her rankings &amp; memories
           </p>
         </button>
 

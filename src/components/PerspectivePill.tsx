@@ -30,9 +30,9 @@ export default function PerspectivePill() {
             ? 'bg-rose-100 text-rose-900 border border-rose-300/80 dark:bg-rose-950/80 dark:text-rose-200 dark:border-rose-800/80 shadow-2xs'
             : 'text-stone-500 dark:text-[#9A8790] hover:text-stone-800 dark:hover:text-rose-100'
         }`}
-        title="View & edit Munto's (Her) picks"
+        title="View & edit Nami's (Her) picks"
       >
-        <img src="/munto.png" alt="Munto" className="w-5 h-5 object-contain" />
+        <img src="/munto.png" alt="Nami" className="w-5 h-5 object-contain" />
         <span>Her Space</span>
       </button>
 

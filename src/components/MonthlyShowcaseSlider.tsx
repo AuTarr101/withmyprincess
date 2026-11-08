@@ -256,7 +256,7 @@ export default function MonthlyShowcaseSlider({
 
   // Render a pure, minimal, button-free card for a single side ('his' or 'her')
   const renderPureCard = (side: 'his' | 'her', data: MonthData, slug: CategorySlug) => {
-    const ownerTag = side === 'his' ? 'HIS · GOOGLE' : 'HERS · MUNTO';
+    const ownerTag = side === 'his' ? 'HIS · GOOGLE' : 'HERS · NAMI';
     const ownerAvatar = side === 'his' ? '/his.png' : '/munto.png';
 
     // 1. MOVIE
