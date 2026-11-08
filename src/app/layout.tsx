@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AppProvider } from '@/lib/store';
+import PersonaThemeBackdrop from '@/components/PersonaThemeBackdrop';
 
 export const metadata: Metadata = {
   title: 'Ever, Together ♡',
@@ -33,9 +34,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-[#FDFBF7] dark:bg-[#140F12] text-[#463836] dark:text-[#F3E8EB] transition-colors duration-300 flex flex-col selection:bg-wine-100 selection:text-wine-800 dark:selection:bg-wine-900/60 dark:selection:text-rose-200">
+      <body className="min-h-screen bg-[#FDFBF7] dark:bg-[#0D0A10] text-[#463836] dark:text-[#F3E8EB] transition-colors duration-500 flex flex-col selection:bg-wine-100 selection:text-wine-800 dark:selection:bg-wine-900/60 dark:selection:text-rose-200">
         <AppProvider>
-          <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <PersonaThemeBackdrop />
+          <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
             {children}
           </main>
         </AppProvider>

@@ -68,8 +68,8 @@ export default function MonthlyCalendar() {
               onClick={() => setActivePerspective('his')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 activePerspective === 'his'
-                  ? 'bg-wine-700 text-white shadow-2xs'
-                  : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
+                  ? 'bg-blue-700 text-white shadow-2xs'
+                  : 'text-stone-600 dark:text-rose-200/70 hover:text-blue-800 dark:hover:text-blue-200'
               }`}
             >
               <img src="/his.png" alt="His" className="w-4 h-4 object-contain" />
@@ -80,8 +80,8 @@ export default function MonthlyCalendar() {
               onClick={() => setActivePerspective('her')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                 activePerspective === 'her'
-                  ? 'bg-wine-700 text-white shadow-2xs'
-                  : 'text-stone-600 dark:text-rose-200/70 hover:text-wine-800 dark:hover:text-rose-100'
+                  ? 'bg-pink-600 text-white shadow-2xs'
+                  : 'text-stone-600 dark:text-rose-200/70 hover:text-pink-700 dark:hover:text-pink-200'
               }`}
             >
               <img src="/munto.png" alt="Hers" className="w-4 h-4 object-contain" />

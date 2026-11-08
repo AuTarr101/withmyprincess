@@ -13,8 +13,8 @@ export default function PerspectivePill() {
         onClick={() => setActivePerspective('his')}
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
           activePerspective === 'his'
-            ? 'bg-amber-100 text-amber-900 border border-amber-300/80 dark:bg-amber-950/80 dark:text-amber-200 dark:border-amber-800/80 shadow-2xs'
-            : 'text-stone-500 dark:text-[#9A8790] hover:text-stone-800 dark:hover:text-rose-100'
+            ? 'bg-blue-100 text-blue-900 border border-blue-300/80 dark:bg-blue-950/85 dark:text-blue-200 dark:border-blue-700/80 shadow-2xs'
+            : 'text-stone-500 dark:text-[#9A8790] hover:text-stone-800 dark:hover:text-blue-200'
         }`}
         title="View & edit Google's (His) picks"
       >
@@ -27,8 +27,8 @@ export default function PerspectivePill() {
         onClick={() => setActivePerspective('her')}
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
           activePerspective === 'her'
-            ? 'bg-rose-100 text-rose-900 border border-rose-300/80 dark:bg-rose-950/80 dark:text-rose-200 dark:border-rose-800/80 shadow-2xs'
-            : 'text-stone-500 dark:text-[#9A8790] hover:text-stone-800 dark:hover:text-rose-100'
+            ? 'bg-pink-100 text-pink-900 border border-pink-300/80 dark:bg-pink-950/85 dark:text-pink-200 dark:border-pink-700/80 shadow-2xs'
+            : 'text-stone-500 dark:text-[#9A8790] hover:text-stone-800 dark:hover:text-pink-200'
         }`}
         title="View & edit Nami's (Her) picks"
       >
