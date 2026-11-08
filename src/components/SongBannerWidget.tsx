@@ -479,54 +479,58 @@ export default function SongBannerWidget({
                 )}
               </div>
 
-              {/* Frosted Glass Audio Wave Rating & Notes Dock */}
-              <div className="rounded-2xl p-4 bg-white/35 dark:bg-white/[0.07] backdrop-blur-xl border border-white/55 dark:border-white/12 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)] space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  {/* Percentage-Filled Audio Waveform Visualizer */}
-                  <div
-                    className="flex-1 flex items-center gap-[3px] sm:gap-1 h-7 py-0.5"
-                    onMouseLeave={() => isEditing && setHoverRating(null)}
-                    title={
-                      isEditing
-                        ? 'Click along the audio wave to set rating'
-                        : `Rated ${currentRating.toFixed(1)}/10 (${Math.round(ratingPercent)}%)`
-                    }
-                  >
-                    {AUDIO_WAVE_HEIGHTS.map((heightPct, idx) => {
-                      const totalBars = AUDIO_WAVE_HEIGHTS.length;
-                      const barStartPct = (idx / totalBars) * 100;
-                      const barEndPct = ((idx + 1) / totalBars) * 100;
-                      const isFilled = ratingPercent >= barEndPct;
-                      const isPartial = !isFilled && ratingPercent > barStartPct;
-                      const hoverScore =
-                        Math.round((((idx + 1) / totalBars) * 10) * 10) / 10;
+              {/* Borderless Full-Width Audio Wave + Rating Underneath */}
+              <div className="pt-1 space-y-2.5">
+                {/* Percentage-Filled Audio Waveform Visualizer */}
+                <div
+                  className="w-full flex items-center gap-[3.5px] sm:gap-1.5 h-8 py-0.5"
+                  onMouseLeave={() => isEditing && setHoverRating(null)}
+                  title={
+                    isEditing
+                      ? 'Click along the audio wave to set rating'
+                      : `Rated ${currentRating.toFixed(1)}/10 (${Math.round(ratingPercent)}%)`
+                  }
+                >
+                  {AUDIO_WAVE_HEIGHTS.map((heightPct, idx) => {
+                    const totalBars = AUDIO_WAVE_HEIGHTS.length;
+                    const barStartPct = (idx / totalBars) * 100;
+                    const barEndPct = ((idx + 1) / totalBars) * 100;
+                    const isFilled = ratingPercent >= barEndPct;
+                    const isPartial = !isFilled && ratingPercent > barStartPct;
+                    const hoverScore =
+                      Math.round((((idx + 1) / totalBars) * 10) * 10) / 10;
 
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          disabled={!isEditing}
-                          onClick={() => handleWaveBarClick(idx, totalBars)}
-                          onMouseEnter={() => isEditing && setHoverRating(hoverScore)}
-                          style={{ height: `${heightPct}%` }}
-                          className={`flex-1 min-w-[3px] rounded-full transition-all duration-200 ${
-                            isEditing ? 'cursor-pointer hover:scale-y-110' : 'cursor-default'
-                          } ${
-                            isFilled
-                              ? 'bg-stone-900/85 dark:bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)]'
-                              : isPartial
-                              ? 'bg-stone-900/50 dark:bg-white/55'
-                              : 'bg-stone-900/14 dark:bg-white/14'
-                          }`}
-                          aria-label={`Rate ${hoverScore} out of 10`}
-                        />
-                      );
-                    })}
-                  </div>
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={!isEditing}
+                        onClick={() => handleWaveBarClick(idx, totalBars)}
+                        onMouseEnter={() => isEditing && setHoverRating(hoverScore)}
+                        style={{ height: `${heightPct}%` }}
+                        className={`flex-1 min-w-[3px] rounded-full transition-all duration-200 ${
+                          isEditing ? 'cursor-pointer hover:scale-y-110' : 'cursor-default'
+                        } ${
+                          isFilled
+                            ? 'bg-stone-900/85 dark:bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.25)]'
+                            : isPartial
+                            ? 'bg-stone-900/50 dark:bg-white/55'
+                            : 'bg-stone-900/14 dark:bg-white/14'
+                        }`}
+                        aria-label={`Rate ${hoverScore} out of 10`}
+                      />
+                    );
+                  })}
+                </div>
 
-                  {/* Right Side: Rating Percentage / Score Readout or Decimal Input */}
+                {/* Rating Row Underneath the Audio Wave */}
+                <div className="flex items-center justify-between text-xs text-stone-600 dark:text-white/65">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.2em] opacity-65">
+                    Rating
+                  </span>
+
                   {isEditing ? (
-                    <div className="shrink-0 flex items-center gap-1 bg-white/55 dark:bg-black/40 px-2.5 py-1 rounded-xl border border-white/60 dark:border-white/20">
+                    <div className="flex items-center gap-1 bg-white/45 dark:bg-black/35 px-2.5 py-0.5 rounded-lg">
                       <input
                         type="number"
                         step="0.1"
@@ -537,11 +541,11 @@ export default function SongBannerWidget({
                         className="w-11 bg-transparent text-xs sm:text-sm font-mono font-bold text-stone-900 dark:text-rose-200 outline-none text-center"
                         title="Edit decimal rating"
                       />
-                      <span className="font-mono text-[11px] opacity-60">/10</span>
+                      <span className="font-mono text-[11px] opacity-60">/ 10</span>
                     </div>
                   ) : (
-                    <div className="shrink-0 flex items-center gap-1.5 font-mono text-xs sm:text-sm font-bold text-stone-800 dark:text-white/90 pl-1">
-                      <span>{currentRating.toFixed(1)}/10</span>
+                    <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm font-bold text-stone-800 dark:text-white/90">
+                      <span>{currentRating.toFixed(1)} / 10</span>
                       <span className="text-[10px] font-normal opacity-55">
                         ({Math.round(ratingPercent)}%)
                       </span>
@@ -549,25 +553,6 @@ export default function SongBannerWidget({
                     </div>
                   )}
                 </div>
-
-                {/* Note preview snippet on front (tap to flip to Live Lyrics view) */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsPlayingEmbed(false);
-                    setIsFlipped(true);
-                  }}
-                  className="w-full text-left pt-2 border-t border-stone-900/10 dark:border-white/10 flex items-center justify-between gap-2 text-xs text-stone-600 dark:text-white/65 hover:text-stone-900 dark:hover:text-white transition-colors cursor-pointer"
-                >
-                  <span className="truncate italic font-serif">
-                    {reasonText.trim()
-                      ? `“${reasonText.trim()}”`
-                      : 'Tap to write memories, lyrics, or reflections on the back...'}
-                  </span>
-                  <span className="shrink-0 font-mono text-[10px] uppercase tracking-wider opacity-70">
-                    Lyrics →
-                  </span>
-                </button>
               </div>
 
               {/* Bottom Bar: Play/Pause Toggle · External Link · Remove */}
