@@ -79,6 +79,9 @@ export interface GameLogEntry {
   completionStatus?: string; // e.g. "100% Completed ♡"
   platform?: 'youtube' | 'steam' | 'link';
   reason?: string; // "Funniest death or best teamwork moment"
+  year?: string;
+  stillUrl?: string;
+  ticketUrl?: string;
   updated_at?: string;
 }
 
@@ -96,6 +99,9 @@ export interface FoodLogEntry {
   mapsUrl?: string; // Optional Google Maps link for QR code
   platform?: 'youtube' | 'link';
   reason?: string; // "What were we laughing about over dinner?"
+  year?: string;
+  stillUrl?: string;
+  ticketUrl?: string;
   updated_at?: string;
 }
 
@@ -112,6 +118,9 @@ export interface MemoryLogEntry {
   geotagUrl?: string; // Optional Google Maps pin for back QR
   platform?: 'youtube' | 'link';
   reason?: string; // "If we could pause time in this exact second, would we?"
+  year?: string;
+  stillUrl?: string;
+  ticketUrl?: string;
   updated_at?: string;
 }
 

@@ -7,8 +7,8 @@ import {
   parseMusicUrl,
   getQrCodeImageUrl,
 } from '@/lib/media-helper';
-import RetroTvFrame from './RetroTvFrame';
 import {
+  Star,
   Trash2,
   ExternalLink,
   Repeat,
@@ -17,9 +17,10 @@ import {
   Check,
   Lock,
   AlertTriangle,
-  Trophy,
-  Clock,
-  Tv,
+  Lightbulb,
+  LightbulbOff,
+  Ticket,
+  Play,
 } from 'lucide-react';
 
 interface GameBannerWidgetProps {
@@ -29,6 +30,8 @@ interface GameBannerWidgetProps {
   year: number;
   isEditing: boolean;
   onToggleEdit: () => void;
+  isDimmed: boolean;
+  onToggleDim: () => void;
 }
 
 export default function GameBannerWidget({
@@ -38,24 +41,38 @@ export default function GameBannerWidget({
   year,
   isEditing,
   onToggleEdit,
+  isDimmed,
+  onToggleDim,
 }: GameBannerWidgetProps) {
-  const { deleteMonthGame, updateMonthGameDetails } = useApp();
+  const {
+    deleteMonthGame,
+    updateMonthGameDetails,
+  } = useApp();
 
   // 3D Flip state
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Rating state (1 decimal)
+  // Rating editing state (1 decimal point e.g. 9.8)
   const [ratingInput, setRatingInput] = useState<string>((game.rating ?? 9.5).toFixed(1));
   const [hoverRating, setHoverRating] = useState<number | null>(null);
 
-  // Editable fields
+  // Editable metadata fields when in Edit mode
   const [titleInput, setTitleInput] = useState(game.title || '');
   const [developerInput, setDeveloperInput] = useState(game.developer || '');
   const [genreInput, setGenreInput] = useState(game.genre || '');
-  const [hoursInput, setHoursInput] = useState(game.hoursPlayed || '24.5 hrs');
-  const [statusInput, setStatusInput] = useState(game.completionStatus || '100% Completed ♡');
+  const [ticketUrlInput, setTicketUrlInput] = useState(game.ticketUrl || '');
+  const [yearInput, setYearInput] = useState(game.year || '');
+  const [hoursInput, setHoursInput] = useState(game.hoursPlayed || '');
+  const [statusInput, setStatusInput] = useState(game.completionStatus || '');
+  const [starringInput, setStarringInput] = useState(
+    game.hisRole && game.herRole ? `${game.hisRole}, ${game.herRole}` : ''
+  );
+  const [stillUrlInput, setStillUrlInput] = useState(game.stillUrl || '');
 
-  // Reflection state
+  // Media still: click play to swap the still for the gameplay/trailer embed
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Reflection state with auto-save
   const [reasonText, setReasonText] = useState(game.reason || '');
   const [isSaved, setIsSaved] = useState(false);
 
@@ -74,15 +91,30 @@ export default function GameBannerWidget({
     setTitleInput(game.title || '');
     setDeveloperInput(game.developer || '');
     setGenreInput(game.genre || '');
-    setHoursInput(game.hoursPlayed || '24.5 hrs');
-    setStatusInput(game.completionStatus || '100% Completed ♡');
+    setTicketUrlInput(game.ticketUrl || '');
+    setYearInput(game.year || '');
+    setHoursInput(game.hoursPlayed || '');
+    setStatusInput(game.completionStatus || '');
+    setStarringInput(
+      game.hisRole && game.herRole ? `${game.hisRole}, ${game.herRole}` : ''
+    );
+    setStillUrlInput(game.stillUrl || '');
   }, [
     game.title,
     game.developer,
     game.genre,
+    game.ticketUrl,
+    game.year,
     game.hoursPlayed,
     game.completionStatus,
+    game.hisRole,
+    game.herRole,
+    game.stillUrl,
   ]);
+
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [game.url]);
 
   const triggerSavedBadge = () => {
     setIsSaved(true);
@@ -108,648 +140,715 @@ export default function GameBannerWidget({
 
   const handleStarClick = (starIndex: number) => {
     if (!isEditing) return;
-    setRatingInput(starIndex.toFixed(1));
-    updateMonthGameDetails(monthId, { rating: starIndex });
+    const newRating = starIndex;
+    setRatingInput(newRating.toFixed(1));
+    updateMonthGameDetails(monthId, { rating: newRating });
   };
 
   const handleDetailBlur = () => {
+    const roles = starringInput.split(',').map((s) => s.trim());
     updateMonthGameDetails(monthId, {
       title: titleInput.trim() || 'Untitled Game',
       developer: developerInput.trim() || 'Game Studio',
       genre: genreInput.trim() || 'Co-Op Adventure',
-      hoursPlayed: hoursInput.trim() || '24.5 hrs',
-      completionStatus: statusInput.trim() || '100% Completed ♡',
+      ticketUrl: ticketUrlInput.trim() || undefined,
+      year: yearInput.trim() || undefined,
+      hoursPlayed: hoursInput.trim() || undefined,
+      completionStatus: statusInput.trim() || undefined,
+      hisRole: roles[0] || undefined,
+      herRole: roles[1] || undefined,
+      stillUrl: stillUrlInput.trim() || undefined,
     });
     triggerSavedBadge();
   };
 
   const parsed = parseMusicUrl(game.url);
 
-  const currentRating = game.rating ?? 9.8;
+  // Poster derived values
+  const yearMatch = (game.title || '').match(/^(.*?)\s*\((\d{4})\)\s*$/);
+  const posterTitle = (yearMatch ? yearMatch[1] : game.title) || 'Untitled Game';
+  const posterYear = game.year || (yearMatch ? yearMatch[2] : String(year));
+  const stillImage = game.stillUrl || game.thumbnailUrl;
+  const trailerEmbed =
+    parsed.platform === 'youtube' && parsed.embedUrl
+      ? `${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}autoplay=1`
+      : null;
+
+  // Poster print palette (identical to Movie)
+  const paperBg = isDimmed ? '#15120F' : '#ECE9E2';
+  const inkColor = isDimmed ? '#F1ECE2' : '#1E1B18';
+  const mutedInk = isDimmed ? '#8F877C' : '#7A756F';
+  const ruleColor = isDimmed ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
+
+  const currentRating = game.rating ?? 9.5;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
 
-  // Vintage paper & ink QR code for the TV backplate sticker
-  const qrCodeUrl = getQrCodeImageUrl(game.url, '1D1A18', 'EDE6DA', 260);
-  const ventSlots = Array.from({ length: 12 });
+  // Scannable QR Code for the Game Pass Stub
+  const targetQrUrl = game.ticketUrl?.trim() || game.url;
+  const qrCodeUrl = getQrCodeImageUrl(
+    targetQrUrl,
+    inkColor.replace('#', ''),
+    paperBg.replace('#', ''),
+    280
+  );
 
-  // Shared wood cabinet & inner bezel styles matching the Retro CRT TV
-  const woodCabinetStyle: React.CSSProperties = {
-    background:
-      'linear-gradient(180deg, #A56A38 0%, #865024 18%, #73421B 52%, #5F3514 85%, #4B280E 100%)',
-    boxShadow:
-      '0 30px 70px -15px rgba(20,10,4,0.75), inset 0 2px 3px rgba(255,225,190,0.35), inset 0 -4px 6px rgba(35,18,6,0.75)',
-  };
+  // Shared pill styling for the poster's top control bar
+  const pillBase =
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all cursor-pointer border active:scale-95';
+  const pillIdle = isDimmed
+    ? 'border-white/15 text-[#F1ECE2]/80 hover:text-[#F1ECE2] hover:bg-white/10'
+    : 'border-black/10 text-[#1E1B18]/70 hover:text-[#1E1B18] hover:bg-black/5';
+
+  const editField =
+    'w-full bg-transparent outline-none border-b border-dashed pb-0.5 placeholder:opacity-40 focus:border-solid';
 
   return (
-    <div className="w-full max-w-2xl sm:max-w-3xl mx-auto py-2">
+    <div className="w-full max-w-xl mx-auto py-2">
       {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2000px] select-none"
-        style={{ minHeight: '880px' }}
+        style={{ minHeight: '820px' }}
       >
         <div
-          className="w-full relative rounded-[32px]"
+          className="w-full relative rounded-md"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             transition: 'transform 0.75s cubic-bezier(0.4, 0.0, 0.2, 1)',
-            minHeight: '880px',
+            minHeight: '820px',
           }}
         >
           {/* ========================================================
-              FRONT SIDE: Walnut Wood TV Console & Co-Op Controls
+              FRONT SIDE: Minimalist Game Poster Print
              ======================================================== */}
           <div
-            className={`w-full rounded-[32px] p-3 sm:p-4 relative border-2 border-[#4E2C12] flex flex-col justify-between overflow-hidden ${
+            className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
-              ...woodCabinetStyle,
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDimmed
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
-              minHeight: '880px',
+              minHeight: '820px',
             }}
           >
-            {/* Subtle Walnut Wood Grain Overlay */}
-            <div
-              className="absolute inset-0 rounded-[32px] opacity-15 pointer-events-none"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(90deg, rgba(40,18,5,0.24) 0px, rgba(40,18,5,0.24) 2px, transparent 2px, transparent 9px)',
-              }}
-            />
+            {/* Top Bar: Dim Lights · Edit/Done · Flip Ticket */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <button
+                type="button"
+                onClick={onToggleDim}
+                className={`${pillBase} ${
+                  isDimmed ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
+                }`}
+                title={isDimmed ? 'Turn the lights back on' : 'Dim the lights for a midnight print'}
+              >
+                {isDimmed ? (
+                  <>
+                    <Lightbulb className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                    <span>Lights On</span>
+                  </>
+                ) : (
+                  <>
+                    <LightbulbOff className="w-3.5 h-3.5" />
+                    <span>Dim Lights</span>
+                  </>
+                )}
+              </button>
 
-            {/* Metallic Warm Cream/Silver Inner Frame Bezel (matches TV bezel) */}
-            <div className="relative flex-1 rounded-[24px] p-1.5 sm:p-2 bg-gradient-to-b from-[#E5DDD0] via-[#CFC5B6] to-[#9E9385] shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),0_2px_10px_rgba(0,0,0,0.65)] border border-[#2C241E] flex flex-col">
-              {/* Dark Charcoal Console Interior */}
-              <div className="flex-1 rounded-[18px] bg-[#1B1816] px-4 py-5 sm:px-8 sm:py-7 flex flex-col justify-between shadow-[inset_0_6px_18px_rgba(0,0,0,0.9)] border border-black text-[#EDE6DA]">
-                {/* Top Control Bar: Ochre-Gold & Bakelite Cream Switches */}
-                <div className="flex flex-wrap items-center justify-between gap-2 relative z-20 mb-1">
-                  <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold tracking-wider border bg-[#282320] border-[#C29438]/50 text-[#E5BC38] shadow-md">
-                    <Tv className="w-3.5 h-3.5 text-[#E5BC38]" />
-                    <span>CH 03 • TELEVISION</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Edit / Done Toggle Button */}
-                    <button
-                      type="button"
-                      onClick={onToggleEdit}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md cursor-pointer border ${
-                        isEditing
-                          ? 'bg-gradient-to-b from-[#E5BC38] to-[#C29438] text-[#1D1A18] border-[#F5D78B] ring-2 ring-[#E5BC38]/40'
-                          : 'bg-[#282320] hover:bg-[#332D29] border-[#CFC5B6]/25 text-[#EDE6DA]'
-                      }`}
-                    >
-                      {isEditing ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Done</span>
-                        </>
-                      ) : (
-                        <>
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Flip TV Backplate Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsFlipped(true);
-                      }}
-                      className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-b from-[#EDE6DA] to-[#C9C0B3] hover:from-[#F7F2E9] hover:to-[#D8CFC2] active:scale-95 border border-[#3A2E21] transition-all text-xs font-semibold text-[#1D1A18] cursor-pointer shadow-md"
-                      title="Flip to the back of the TV to view Save Slot & Co-Op Notes"
-                    >
-                      <Repeat className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                      <span>Flip TV Back</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* ========================================================
-                    1. VINTAGE WOODEN CRT TV WITH ANTENNAS, KNOBS & LEGS
-                   ======================================================== */}
-                <div className="relative z-10 w-full my-1 flex flex-col items-center">
-                  <RetroTvFrame
-                    channelLabel={`CH 03 • ${monthName.slice(0, 3).toUpperCase()} ${year}`}
-                  >
-                    {parsed.platform === 'youtube' && parsed.embedUrl ? (
-                      <iframe
-                        src={parsed.embedUrl}
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="w-full h-full relative z-10"
-                        title={game.title || 'Gameplay Trailer'}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-black/70 relative">
-                        {game.thumbnailUrl ? (
-                          <img
-                            src={game.thumbnailUrl}
-                            alt={game.title || 'Game Cover'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Gamepad2 className="w-16 h-16 text-[#EDE6DA]/40" />
-                        )}
-                      </div>
-                    )}
-                  </RetroTvFrame>
-                  <span className="text-[10px] font-mono tracking-widest uppercase text-[#B7AEA0]/60 -mt-1 text-center">
-                    Tip: Click the TV knobs to switch to Color Bars or toggle scanlines
-                  </span>
-                </div>
-
-                {/* ========================================================
-                    2. GAME DETAILS: Title, Studio, Genre Plate & Vintage VU Meter
-                   ======================================================== */}
-                <div className="relative z-10 text-center space-y-2.5 my-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleEdit}
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
+                  }`}
+                  title={isEditing ? 'Save and lock edits' : 'Edit game details and rating'}
+                >
                   {isEditing ? (
-                    <div className="max-w-md mx-auto space-y-2 bg-[#141210] p-3.5 rounded-md border border-[#4A3D2C]">
-                      <input
-                        type="text"
-                        value={titleInput}
-                        onChange={(e) => setTitleInput(e.target.value)}
-                        onBlur={handleDetailBlur}
-                        placeholder="Game Title (e.g. It Takes Two)"
-                        className="w-full bg-transparent text-center font-serif text-xl sm:text-2xl font-bold text-[#EDE6DA] outline-none border-b border-white/15 pb-1"
-                      />
-                      <input
-                        type="text"
-                        value={developerInput}
-                        onChange={(e) => setDeveloperInput(e.target.value)}
-                        onBlur={handleDetailBlur}
-                        placeholder="Developer / Studio (e.g. Hazelight)"
-                        className="w-full bg-transparent text-center text-sm sm:text-base font-medium text-[#C8A45D] outline-none border-b border-white/15 pb-1"
-                      />
-                      <input
-                        type="text"
-                        value={genreInput}
-                        onChange={(e) => setGenreInput(e.target.value)}
-                        onBlur={handleDetailBlur}
-                        placeholder="Genre (e.g. Co-Op Adventure)"
-                        className="w-full bg-transparent text-center text-xs uppercase tracking-widest text-[#EDE6DA]/80 outline-none pt-0.5"
-                      />
-                    </div>
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Done</span>
+                    </>
                   ) : (
-                    <div className="space-y-0.5">
-                      <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#F0E9DC] line-clamp-2">
-                        {game.title || 'Untitled Game'}
-                      </h3>
-                      <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.18em] text-[#B59A66]">
-                        {game.developer || 'Game Studio'}
-                      </p>
+                    <>
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPlaying(false);
+                    setIsFlipped(true);
+                  }}
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip to view Arcade Pass & Field Notes"
+                >
+                  <Ticket className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
+                  <span>Flip Pass</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ========================================================
+                1. GAMEPLAY STILL (click play to roll video)
+               ======================================================== */}
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/80 group">
+              {isPlaying && trailerEmbed ? (
+                <iframe
+                  src={trailerEmbed}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                  title={posterTitle}
+                />
+              ) : (
+                <>
+                  {stillImage ? (
+                    <img
+                      src={stillImage}
+                      alt={posterTitle}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Gamepad2 className="w-14 h-14 text-white/30" />
                     </div>
                   )}
 
-                  {/* Stamped Antique Brass Genre Tag */}
-                  {!isEditing && (
-                    <div className="flex items-center justify-center pt-0.5">
-                      <span className="px-3.5 py-0.5 rounded-xs text-[10px] font-mono uppercase tracking-[0.22em] border border-[#5C4B32] bg-[#241E18] text-[#C8B288]">
-                        {game.genre || 'Co-Op Adventure'}
+                  {trailerEmbed ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlaying(true)}
+                      className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                      title="Play gameplay trailer"
+                    >
+                      <span className="w-14 h-14 rounded-full bg-white/85 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-[#1E1B18] fill-[#1E1B18] ml-0.5" />
                       </span>
-                    </div>
+                    </button>
+                  ) : (
+                    <a
+                      href={game.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
+                        Open Game Link ↗
+                      </span>
+                    </a>
                   )}
+                </>
+              )}
+            </div>
 
-                  {/* 1970s Analog Signal / VU Meter + Mechanical Split-Flap Readout */}
-                  <div className="pt-2 max-w-md w-full mx-auto flex flex-col items-center gap-1.5">
-                    <div className="w-full rounded-md bg-[#12100E] border border-[#3F3528] px-3.5 py-2.5 shadow-[inset_0_3px_8px_rgba(0,0,0,0.9)] flex items-center justify-between gap-3">
-                      {/* Left engraved gauge label */}
-                      <div className="flex flex-col items-start text-left shrink-0">
-                        <span className="text-[9px] font-mono uppercase tracking-[0.22em] text-[#8E7C5E]">
-                          SIGNAL
-                        </span>
-                        <span className="text-[8px] font-mono uppercase tracking-widest text-[#61543F]">
-                          VU · dB
-                        </span>
-                      </div>
+            {/* Optional custom still URL while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  still image
+                </span>
+                <input
+                  type="url"
+                  value={stillUrlInput}
+                  onChange={(e) => setStillUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: paste a game still image URL..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
 
-                      {/* Center 10-segment backlit analog tuner bar */}
-                      <div className="flex-1 flex flex-col gap-1">
-                        <div className="grid grid-cols-10 gap-1 items-end h-5">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((segIndex) => {
-                            const isLit = segIndex <= Math.round(displayRating);
-                            const isPeak = segIndex >= 8;
-                            return (
-                              <button
-                                key={segIndex}
-                                type="button"
-                                disabled={!isEditing}
-                                onClick={() => handleStarClick(segIndex)}
-                                onMouseEnter={() => isEditing && setHoverRating(segIndex)}
-                                onMouseLeave={() => isEditing && setHoverRating(null)}
-                                title={
-                                  isEditing
-                                    ? `Set signal rating to ${segIndex}.0 / 10`
-                                    : `${currentRating.toFixed(1)} / 10`
-                                }
-                                className={`h-full rounded-[1px] border transition-all ${
-                                  isEditing ? 'cursor-pointer hover:opacity-100' : 'cursor-default'
-                                } ${
-                                  isLit
-                                    ? isPeak
-                                      ? 'bg-[#C86D3B] border-[#E08B58] shadow-[0_0_6px_rgba(200,109,59,0.45)]'
-                                      : 'bg-[#C9A86A] border-[#DFC288] shadow-[0_0_5px_rgba(201,168,106,0.35)]'
-                                    : 'bg-[#1E1B18] border-[#2C2620]'
-                                }`}
-                              />
-                            );
-                          })}
-                        </div>
-                        {/* Calibrated scale ticks */}
-                        <div className="grid grid-cols-10 text-[8px] font-mono text-[#6E604B] text-center leading-none">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                            <span key={n}>{n}</span>
-                          ))}
-                        </div>
-                      </div>
+            {/* ========================================================
+                2. TITLE + YEAR
+               ======================================================== */}
+            <div className="mt-6">
+              {isEditing ? (
+                <div className="flex items-end gap-3">
+                  <input
+                    type="text"
+                    value={titleInput}
+                    onChange={(e) => setTitleInput(e.target.value)}
+                    onBlur={handleDetailBlur}
+                    placeholder="GAME TITLE"
+                    className={`${editField} font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
+                    onBlur={handleDetailBlur}
+                    placeholder="YEAR"
+                    className={`${editField} font-poster text-lg sm:text-xl w-16 shrink-0`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
+                  />
+                </div>
+              ) : (
+                <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl">
+                  {posterTitle}
+                  <span
+                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2 align-baseline"
+                    style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
+                  >
+                    {posterYear}
+                  </span>
+                </h3>
+              )}
+            </div>
 
-                      {/* Right mechanical split-flap drum counter */}
-                      {isEditing ? (
-                        <div className="flex items-center gap-1 bg-[#1B1815] px-2 py-1 rounded border border-[#6E5B3E] shrink-0">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="10"
-                            value={ratingInput}
-                            onChange={handleRatingInputChange}
-                            className="w-11 bg-transparent text-xs sm:text-sm font-mono font-bold text-[#E6DEC8] outline-none text-center"
-                          />
-                          <span className="font-mono text-[10px] text-[#8E7C5E]">/10</span>
-                        </div>
-                      ) : (
-                        <div className="bg-[#1A1714] border border-[#4A3E2D] px-2.5 py-1 rounded-xs shadow-inner shrink-0 flex items-baseline gap-1">
-                          <span className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#E6DEC8]">
-                            {currentRating.toFixed(1)}
-                          </span>
-                          <span className="font-mono text-[9px] text-[#7D6D52]">/10</span>
-                        </div>
-                      )}
-                    </div>
+            {/* ========================================================
+                3. METADATA ROWS: genre · studio · status · rated
+               ======================================================== */}
+            <div className="mt-4 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide">
+              {[
+                {
+                  label: 'genre',
+                  value: game.genre || 'Co-Op Adventure',
+                  input: genreInput,
+                  setInput: setGenreInput,
+                  placeholder: 'CO-OP PLATFORMER',
+                },
+                {
+                  label: 'developer',
+                  value: game.developer || 'Game Studio',
+                  input: developerInput,
+                  setInput: setDeveloperInput,
+                  placeholder: 'STUDIO / DEVELOPER',
+                },
+                {
+                  label: 'status',
+                  value: game.completionStatus || game.hoursPlayed || '100% Completed ♡',
+                  input: statusInput,
+                  setInput: setStatusInput,
+                  placeholder: '100% COMPLETED / 24 HRS',
+                },
+              ].map((row) => (
+                <div key={row.label} className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    {row.label}
+                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={row.input}
+                      onChange={(e) => row.setInput(e.target.value)}
+                      onBlur={handleDetailBlur}
+                      placeholder={row.placeholder}
+                      className={`${editField} uppercase`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                    />
+                  ) : (
+                    <span className="uppercase font-normal truncate">{row.value}</span>
+                  )}
+                </div>
+              ))}
 
-                    {isEditing ? (
-                      <span className="text-[10px] text-[#B59A66] font-mono tracking-wider uppercase">
-                        Click meter bars or type decimal • Done to lock
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-[#7D6D52] font-mono uppercase tracking-widest flex items-center gap-1">
-                        <Lock className="w-2.5 h-2.5" />
-                        <span>Meter calibrated</span>
-                      </span>
-                    )}
+              {/* Game Rating row (locked unless editing) */}
+              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-center">
+                <span className="font-light lowercase" style={{ color: mutedInk }}>
+                  rated
+                </span>
+                {isEditing ? (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
+                      <button
+                        key={starIndex}
+                        type="button"
+                        onClick={() => handleStarClick(starIndex)}
+                        onMouseEnter={() => setHoverRating(starIndex)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-0.5 hover:scale-125 transition-transform cursor-pointer"
+                        title={`Rate ${starIndex}/10`}
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            starIndex <= displayRating
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'opacity-25'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={ratingInput}
+                      onChange={handleRatingInputChange}
+                      className={`${editField} w-12 ml-1 text-center font-mono text-xs`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                      title="Edit decimal rating"
+                    />
+                    <span className="text-xs" style={{ color: mutedInk }}>/ 10</span>
                   </div>
-                </div>
+                ) : (
+                  <span className="uppercase flex items-center gap-1.5">
+                    <span>🎮 {currentRating.toFixed(1)} / 10</span>
+                    <Lock className="w-3 h-3 opacity-30" />
+                  </span>
+                )}
+              </div>
+            </div>
 
-                {/* Bottom Actions Row */}
-                <div className="relative z-10 mt-4 pt-3.5 border-t border-[#CFC5B6]/15 flex items-center justify-between">
-                  <a
-                    href={game.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-xs sm:text-sm text-[#CFC5B6]/75 hover:text-[#EDE6DA] transition-colors"
-                  >
-                    <span>Open Game Link</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+            {/* ========================================================
+                4. PLAYERS (mirrors Movie's "starring" line)
+               ======================================================== */}
+            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
+              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
+                players
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={starringInput}
+                  onChange={(e) => setStarringInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Google (P1), Nami (P2)..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              ) : game.hisRole && game.herRole ? (
+                <span className="uppercase tracking-wider">
+                  {game.hisRole} &nbsp;·&nbsp; {game.herRole}
+                </span>
+              ) : (
+                <span className="uppercase tracking-wider">Google (P1) &nbsp;·&nbsp; Nami (P2)</span>
+              )}
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingDelete(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full hover:bg-[#C94A29]/20 text-[#CFC5B6]/55 hover:text-[#E8836B] transition-colors cursor-pointer text-xs border border-transparent hover:border-[#C94A29]/40"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Remove</span>
-                  </button>
-                </div>
+            {/* Footer: couple print stamp · open link · remove */}
+            <div
+              className="mt-auto pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={game.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full hover:opacity-100 opacity-80 transition-opacity"
+                  title="Open game link"
+                >
+                  <span>
+                    {game.platform === 'steam'
+                      ? 'Steam'
+                      : game.platform === 'youtube'
+                      ? 'YouTube'
+                      : 'Game Link'}
+                  </span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Remove logged game"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
               </div>
             </div>
           </div>
 
           {/* ========================================================
-              BACK SIDE: Walnut Wood TV Rear Service Panel & Save Log
+              BACK SIDE: Poster-Print Game Pass + Co-Op Notes
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-[32px] p-3 sm:p-4 border-2 border-[#4E2C12] flex flex-col justify-between overflow-hidden ${
+            className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
             }`}
             style={{
-              ...woodCabinetStyle,
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDimmed
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              minHeight: '880px',
+              minHeight: '820px',
             }}
           >
-            {/* Subtle Walnut Wood Grain Overlay */}
+            {/* Top Bar: section label · Edit/Done · Flip Back */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <span
+                className="font-mono text-[11px] tracking-widest uppercase"
+                style={{ color: mutedInk }}
+              >
+                Arcade Pass &amp; Field Notes
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onToggleEdit}
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
+                  }`}
+                  title={isEditing ? 'Save and lock notes' : 'Edit notes and pass link'}
+                >
+                  {isEditing ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Done</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFlipped(false);
+                  }}
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip back to the poster"
+                >
+                  <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
+                  <span>Flip Back</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ========================================================
+                1. HEADLINE
+               ======================================================== */}
+            <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
+              Player 1 &amp; 2
+              <span
+                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
+                style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
+              >
+                Google &amp; Nami
+              </span>
+            </h3>
+
+            {/* ========================================================
+                2. MINIMAL PASS STUB: metadata rows + tear-off QR
+               ======================================================== */}
             <div
-              className="absolute inset-0 rounded-[32px] opacity-15 pointer-events-none"
-              style={{
-                backgroundImage:
-                  'repeating-linear-gradient(90deg, rgba(40,18,5,0.24) 0px, rgba(40,18,5,0.24) 2px, transparent 2px, transparent 9px)',
-              }}
-            />
+              className="mt-5 flex flex-col sm:flex-row border"
+              style={{ borderColor: ruleColor }}
+            >
+              <div
+                className="flex-1 p-4 sm:p-5 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide border-b sm:border-b-0 sm:border-r border-dashed"
+                style={{ borderColor: ruleColor }}
+              >
+                {[
+                  { label: 'game', value: posterTitle },
+                  { label: 'developer', value: game.developer || '—' },
+                  { label: 'date', value: `${monthName} ${year}` },
+                  { label: 'status', value: game.completionStatus || game.hoursPlayed || '100% Completed ♡' },
+                  { label: 'rated', value: `🎮 ${currentRating.toFixed(1)} / 10` },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
+                  >
+                    <span className="font-light lowercase" style={{ color: mutedInk }}>
+                      {row.label}
+                    </span>
+                    <span className="uppercase truncate">{row.value}</span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Metallic Warm Cream/Silver Inner Frame Bezel */}
-            <div className="relative flex-1 rounded-[24px] p-1.5 sm:p-2 bg-gradient-to-b from-[#E5DDD0] via-[#CFC5B6] to-[#9E9385] shadow-[inset_0_2px_4px_rgba(255,255,255,0.7),0_2px_10px_rgba(0,0,0,0.65)] border border-[#2C241E] flex flex-col">
-              {/* Recessed Dark Bakelite Rear TV Backplate */}
-              <div className="flex-1 rounded-[18px] bg-[#1B1816] px-4 py-5 sm:px-8 sm:py-7 flex flex-col justify-between shadow-[inset_0_6px_18px_rgba(0,0,0,0.9)] border border-black text-[#EDE6DA]">
-                {/* Back Top Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-2 relative z-40 mb-2">
-                  <span className="text-xs uppercase tracking-widest text-[#C29438] font-mono font-bold">
-                    TV Rear Service Panel • Save Slot 01
+              {/* Tear-off QR stub */}
+              <div className="sm:w-36 p-4 flex flex-col items-center justify-center gap-1.5 shrink-0">
+                <a
+                  href={targetQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-80 transition-opacity"
+                  title="Scan or click to open Steam / YouTube / Game link"
+                >
+                  <img src={qrCodeUrl} alt="Game Pass QR code" className="w-20 h-20" />
+                </a>
+                <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: mutedInk }}>
+                  PASS #{monthId.replace('-', '')}02
+                </span>
+              </div>
+            </div>
+
+            {/* Optional QR link while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  pass link
+                </span>
+                <input
+                  type="url"
+                  value={ticketUrlInput}
+                  onChange={(e) => setTicketUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: Steam / Store link for the QR..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
+
+            {/* ========================================================
+                3. CO-OP NOTES: funniest death / best teamwork moment
+               ======================================================== */}
+            <div className="mt-6 flex-1 flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
+                <span>
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    notes
                   </span>
+                  <span className="uppercase ml-3">Funniest death / best teamwork moment</span>
+                </span>
+                {isSaved ? (
+                  <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
+                    <Check className="w-3 h-3" />
+                    Saved ♡
+                  </span>
+                ) : (
+                  !isEditing && <Lock className="w-3 h-3 opacity-30 shrink-0" />
+                )}
+              </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={onToggleEdit}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all shadow-md cursor-pointer border ${
-                        isEditing
-                          ? 'bg-gradient-to-b from-[#E5BC38] to-[#C29438] text-[#1D1A18] border-[#F5D78B] ring-2 ring-[#E5BC38]/40'
-                          : 'bg-[#282320] hover:bg-[#332D29] border-[#CFC5B6]/25 text-[#EDE6DA]'
-                      }`}
-                    >
-                      {isEditing ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Done</span>
-                        </>
-                      ) : (
-                        <>
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsFlipped(false);
-                      }}
-                      className="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-b from-[#EDE6DA] to-[#C9C0B3] hover:from-[#F7F2E9] hover:to-[#D8CFC2] active:scale-95 border border-[#3A2E21] transition-all text-xs font-semibold text-[#1D1A18] cursor-pointer shadow-md relative z-50"
-                    >
-                      <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
-                      <span>Flip to TV Front</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* ========================================================
-                    THE ARTIFACT: VINTAGE TV REAR MANUFACTURER PLATE & SAVE STATE
-                   ======================================================== */}
-                <div className="relative z-30 my-2 flex flex-col items-center">
-                  <div className="w-full rounded-2xl overflow-hidden border-2 border-[#3C352E] bg-[#231F1D] shadow-[inset_0_2px_10px_rgba(0,0,0,0.8),0_12px_30px_rgba(0,0,0,0.5)]">
-                    {/* Top 7-Color Rainbow Ribbon Accent (matches TV Color Bars) */}
-                    <div className="h-2 w-full grid grid-cols-7">
-                      <div className="bg-[#C94A29]" />
-                      <div className="bg-[#E5BC38]" />
-                      <div className="bg-[#A9B867]" />
-                      <div className="bg-[#7399B2]" />
-                      <div className="bg-[#DFDDD6]" />
-                      <div className="bg-[#649BB5]" />
-                      <div className="bg-[#87C37F]" />
-                    </div>
-
-                    <div className="p-5 flex flex-col sm:flex-row items-center gap-5">
-                      <div className="flex-1 space-y-3 w-full">
-                        {/* Stamped Brass Header */}
-                        <div className="flex items-center justify-between border-b border-[#CFC5B6]/15 pb-2">
-                          <span
-                            className="px-2.5 py-0.5 rounded text-[10px] font-mono font-extrabold uppercase tracking-widest text-[#1D1A18] border border-[#3B2B10]"
-                            style={{
-                              background: 'linear-gradient(180deg, #D9AD4E 0%, #C29438 100%)',
-                            }}
-                          >
-                            ★ SAVE SLOT 01 : GOOGLE &amp; NAMI ♡
-                          </span>
-                          <span className="text-[10px] font-mono text-[#B7AEA0]/70">
-                            MODEL CT-{year}
-                          </span>
-                        </div>
-
-                        {/* Save Slot Stats Grid */}
-                        <div className="grid grid-cols-2 gap-3 pt-1">
-                          <div className="rounded-xl bg-[#181514] border border-[#C29438]/30 p-3 shadow-inner">
-                            <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#E5BC38]">
-                              <Clock className="w-3.5 h-3.5" />
-                              <span>Time Played Together</span>
-                            </div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={hoursInput}
-                                onChange={(e) => setHoursInput(e.target.value)}
-                                onBlur={handleDetailBlur}
-                                className="w-full mt-1 bg-transparent text-sm sm:text-base font-mono font-bold text-[#EDE6DA] border-b border-[#E5BC38]/50 outline-none"
-                              />
-                            ) : (
-                              <p className="mt-1 text-sm sm:text-base font-mono font-bold text-[#EDE6DA]">
-                                {game.hoursPlayed || '24.5 hrs'}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="rounded-xl bg-[#181514] border border-[#87C37F]/35 p-3 shadow-inner">
-                            <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase text-[#87C37F]">
-                              <Trophy className="w-3.5 h-3.5" />
-                              <span>Completion Status</span>
-                            </div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
-                                onBlur={handleDetailBlur}
-                                className="w-full mt-1 bg-transparent text-sm sm:text-base font-mono font-bold text-[#87C37F] border-b border-[#87C37F]/50 outline-none"
-                              />
-                            ) : (
-                              <p className="mt-1 text-sm sm:text-base font-mono font-bold text-[#87C37F]">
-                                {game.completionStatus || '100% Completed ♡'}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Vintage Cream Paper Serial Label + QR Code */}
-                      <a
-                        href={game.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 flex flex-col items-center p-2.5 rounded-xl bg-[#EDE6DA] text-[#1D1A18] border-2 border-[#9E9385] hover:scale-105 transition-transform shadow-md"
-                        title="Scan or click to open game"
-                      >
-                        <img
-                          src={qrCodeUrl}
-                          alt="Game QR Code"
-                          className="w-20 h-20 rounded"
-                        />
-                        <span className="mt-1 text-[9px] font-mono font-bold uppercase tracking-widest text-[#3A2E21]">
-                          SERIAL QR
-                        </span>
-                      </a>
-                    </div>
-
-                    {/* Molded TV Rear Ventilation Louver Slots (matches front speaker grille) */}
-                    <div className="bg-[#161312] border-t border-[#3C352E] px-5 py-2.5">
-                      <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
-                        {ventSlots.map((_, idx) => (
-                          <div
-                            key={`vent-${idx}`}
-                            className="h-2 rounded-full bg-[#0C0A09] border-b border-white/10 shadow-inner"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ========================================================
-                    BESPOKE QUESTION PROMPT: "Funniest death or best teamwork moment"
-                   ======================================================== */}
-                <div className="relative z-30 my-3 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#E5BC38] flex items-center gap-2 flex-wrap">
-                      <span>Funniest death or best teamwork moment</span>
-                      {isEditing ? (
-                        <span className="text-[11px] text-[#EDE6DA]/70 font-normal lowercase">
-                          (editing mode)
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-[#B7AEA0]/45 font-normal lowercase flex items-center gap-1">
-                          <Lock className="w-3 h-3" />
-                          <span>locked • click Edit above to change</span>
-                        </span>
-                      )}
-                    </label>
-                    {isSaved && (
-                      <span className="text-[11px] text-[#87C37F] font-mono flex items-center gap-1 animate-in fade-in">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Saved ♡</span>
+              <div className="flex-1 relative border" style={{ borderColor: ruleColor }}>
+                {isEditing ? (
+                  <textarea
+                    value={reasonText}
+                    onChange={handleReasonChange}
+                    placeholder="Funniest death, boss fight victory, clutch teamwork, or moments spent gaming together..."
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
+                    style={{ color: inkColor }}
+                  />
+                ) : (
+                  <div
+                    onClick={onToggleEdit}
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
+                    title="Click to edit"
+                  >
+                    {reasonText.trim() ? (
+                      reasonText
+                    ) : (
+                      <span className="italic" style={{ color: mutedInk }}>
+                        No co-op notes yet. Click Edit to write your funniest moments or teamwork memories...
                       </span>
                     )}
                   </div>
-
-                  <div
-                    className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
-                      isEditing
-                        ? 'border-[#E5BC38]/70 bg-[#141210] ring-1 ring-[#E5BC38]/25'
-                        : 'border-[#3C352E] bg-[#141210]'
-                    }`}
-                  >
-                    {isEditing ? (
-                      <textarea
-                        value={reasonText}
-                        onChange={handleReasonChange}
-                        placeholder="Write down the funniest fail, boss fight victory, or co-op memory from playing this together..."
-                        className="w-full h-full min-h-[210px] p-5 text-sm sm:text-base text-[#EDE6DA] placeholder-[#B7AEA0]/35 bg-transparent outline-none resize-none font-serif leading-relaxed"
-                      />
-                    ) : (
-                      <div
-                        onClick={onToggleEdit}
-                        className="w-full h-full min-h-[210px] p-5 text-sm sm:text-base text-[#EDE6DA]/90 font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
-                        title="Click Edit to modify"
-                      >
-                        {reasonText.trim() ? (
-                          reasonText
-                        ) : (
-                          <span className="text-[#B7AEA0]/40 italic">
-                            No save log written yet. Click &quot;Edit&quot; above to record your funniest co-op memory...
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    <div className="absolute bottom-3 right-4 pointer-events-none text-[11px] font-mono text-[#B7AEA0]/35">
-                      {reasonText.length} characters
-                    </div>
-                  </div>
-                </div>
-
-                {/* Back Bottom Bar */}
-                <div className="relative z-40 pt-3.5 border-t border-[#CFC5B6]/15 flex items-center justify-between text-xs text-[#B7AEA0]/65">
-                  <button
-                    type="button"
-                    onClick={() => setIsFlipped(false)}
-                    className="hover:text-[#EDE6DA] transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
-                  >
-                    <Repeat className="w-3.5 h-3.5" />
-                    <span>Return to TV screen</span>
-                  </button>
-
-                  <span className="font-serif italic text-[#B7AEA0]/50">
-                    Ever, Together ♡ Google &amp; Nami
-                  </span>
-                </div>
+                )}
+                <span
+                  className="absolute bottom-2 right-3 pointer-events-none font-mono text-[10px]"
+                  style={{ color: mutedInk }}
+                >
+                  {reasonText.length}
+                </span>
               </div>
+            </div>
+
+            {/* Footer: couple print stamp · flip back */}
+            <div
+              className="pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsFlipped(false)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+              >
+                <Repeat className="w-3 h-3" />
+                <span>Back to poster</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================
-          CONFIRMATION POPUP MODAL FOR REMOVING GAME (Wood & Bakelite Theme)
+          CONFIRMATION POPUP MODAL FOR REMOVING GAME
          ======================================================== */}
       {isConfirmingDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsConfirmingDelete(false)}
         >
           <div
-            className="w-full max-w-sm rounded-[26px] p-2.5 shadow-2xl border-2 border-[#4E2C12] animate-in zoom-in-95 duration-200"
-            style={woodCabinetStyle}
+            className="w-full max-w-sm rounded-md p-6 sm:p-7 shadow-2xl border text-center animate-in zoom-in-95 duration-200 space-y-4"
+            style={{
+              backgroundColor: paperBg,
+              color: inkColor,
+              borderColor: ruleColor,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="rounded-[20px] p-1 bg-gradient-to-b from-[#E5DDD0] via-[#CFC5B6] to-[#9E9385]">
-              <div className="rounded-[16px] bg-[#1B1816] p-6 text-center space-y-4 text-[#EDE6DA]">
-                <div className="flex justify-center text-[#E8836B]">
-                  <AlertTriangle className="w-8 h-8 stroke-[1.75]" />
-                </div>
+            <div className="flex justify-center text-red-500">
+              <AlertTriangle className="w-8 h-8 stroke-[1.75]" />
+            </div>
 
-                <div className="space-y-1.5">
-                  <h4 className="font-serif text-xl font-bold tracking-tight text-[#F5EFE6]">
-                    Remove this game?
-                  </h4>
-                  <p className="text-xs sm:text-sm text-[#B7AEA0] leading-relaxed px-2">
-                    This will erase the tuned game, co-op roles, and save slot notes for this month.
-                  </p>
-                </div>
+            <div className="space-y-1.5">
+              <h4 className="font-poster uppercase text-2xl font-bold tracking-tight">
+                Remove this game?
+              </h4>
+              <p className="text-xs sm:text-sm leading-relaxed px-2" style={{ color: mutedInk }}>
+                This will delete the logged game, its rating, and field notes for {monthName} {year}.
+              </p>
+            </div>
 
-                <div className="py-2 px-3 rounded-xl bg-[#141210] border border-[#3C352E] text-xs text-[#EDE6DA] truncate">
-                  <span className="font-medium">{game.title || 'Logged Game'}</span>
-                  {game.developer && <span className="text-[#B7AEA0]"> • {game.developer}</span>}
-                </div>
+            <div
+              className="py-2 px-3 border text-xs truncate font-poster uppercase tracking-wide"
+              style={{ borderColor: ruleColor }}
+            >
+              <span>{posterTitle}</span>
+              {game.developer && (
+                <span style={{ color: mutedInk }}> · {game.developer}</span>
+              )}
+            </div>
 
-                <div className="flex items-center gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsConfirmingDelete(false)}
-                    className="flex-1 py-2.5 px-4 rounded-full bg-[#282320] hover:bg-[#332D29] active:scale-95 text-[#EDE6DA] text-xs sm:text-sm font-semibold transition-all border border-[#CFC5B6]/25 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsConfirmingDelete(false);
-                      deleteMonthGame(monthId);
-                    }}
-                    className="flex-1 py-2.5 px-4 rounded-full bg-[#C94A29] hover:bg-[#B33F20] active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-md cursor-pointer"
-                  >
-                    Yes, Remove
-                  </button>
-                </div>
-              </div>
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmingDelete(false)}
+                className="flex-1 py-2.5 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all border cursor-pointer"
+                style={{ borderColor: ruleColor, color: inkColor }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsConfirmingDelete(false);
+                  deleteMonthGame(monthId);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-md cursor-pointer"
+              >
+                Yes, Remove
+              </button>
             </div>
           </div>
         </div>

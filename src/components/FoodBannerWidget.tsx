@@ -7,16 +7,20 @@ import {
   parseMusicUrl,
   getQrCodeImageUrl,
 } from '@/lib/media-helper';
-import PorcelainPlateFrame from './PorcelainPlateFrame';
 import {
+  Star,
   Trash2,
   ExternalLink,
   Repeat,
+  Utensils,
   Pencil,
   Check,
   Lock,
   AlertTriangle,
-  Utensils,
+  Lightbulb,
+  LightbulbOff,
+  Ticket,
+  Play,
 } from 'lucide-react';
 
 interface FoodBannerWidgetProps {
@@ -26,14 +30,9 @@ interface FoodBannerWidgetProps {
   year: number;
   isEditing: boolean;
   onToggleEdit: () => void;
+  isDimmed: boolean;
+  onToggleDim: () => void;
 }
-
-const CRAVING_VERDICTS = [
-  'RESERVE DE LA MAISON · WOULD TRAVEL 2 HRS FOR THIS',
-  'INSTANT COMFORT CLASSIC · TABLE FOR TWO',
-  'ETOILE DU SOIR · DATE NIGHT PERFECTION',
-  'PARTAGE DU CHEF · STOLE BITES OFF EACH OTHER’S PLATES',
-];
 
 export default function FoodBannerWidget({
   food,
@@ -42,33 +41,42 @@ export default function FoodBannerWidget({
   year,
   isEditing,
   onToggleEdit,
+  isDimmed,
+  onToggleDim,
 }: FoodBannerWidgetProps) {
-  const { deleteMonthFood, updateMonthFoodDetails } = useApp();
+  const {
+    deleteMonthFood,
+    updateMonthFoodDetails,
+  } = useApp();
 
   // 3D Flip state
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Rating state (1 decimal)
+  // Rating editing state (1 decimal point e.g. 9.8)
   const [ratingInput, setRatingInput] = useState<string>((food.rating ?? 9.6).toFixed(1));
   const [hoverRating, setHoverRating] = useState<number | null>(null);
 
-  // Editable fields
+  // Editable metadata fields when in Edit mode
   const [titleInput, setTitleInput] = useState(food.title || '');
   const [restaurantInput, setRestaurantInput] = useState(food.restaurant || '');
   const [genreInput, setGenreInput] = useState(food.genre || '');
-  const [orderTextInput, setOrderTextInput] = useState(
+  const [ticketUrlInput, setTicketUrlInput] = useState(food.mapsUrl || '');
+  const [yearInput, setYearInput] = useState(food.year || '');
+  const [cravingInput, setCravingInput] = useState(
+    food.cravingLevel || 'Would travel 2 hrs just to eat this again! 🍷'
+  );
+  const [orderInput, setOrderInput] = useState(
     (food.orderItems && food.orderItems.length > 0
       ? food.orderItems
-      : [
-          `1x ${food.title || 'Signature Dish'}`,
-          '2x Verre de Maison',
-          '1x Dessert Partagé ♡',
-        ]
+      : [`1x ${food.title || 'Signature Dish'}`, '2x Wine', '1x Dessert ♡']
     ).join('\n')
   );
-  const [mapsUrlInput, setMapsUrlInput] = useState(food.mapsUrl || '');
+  const [stillUrlInput, setStillUrlInput] = useState(food.stillUrl || '');
 
-  // Reflection state
+  // Media still: click play to swap the still for the video embed
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Reflection state with auto-save
   const [reasonText, setReasonText] = useState(food.reason || '');
   const [isSaved, setIsSaved] = useState(false);
 
@@ -87,24 +95,32 @@ export default function FoodBannerWidget({
     setTitleInput(food.title || '');
     setRestaurantInput(food.restaurant || '');
     setGenreInput(food.genre || '');
+    setTicketUrlInput(food.mapsUrl || '');
+    setYearInput(food.year || '');
+    setCravingInput(food.cravingLevel || 'Would travel 2 hrs just to eat this again! 🍷');
     if (food.orderItems && food.orderItems.length > 0) {
-      setOrderTextInput(food.orderItems.join('\n'));
+      setOrderInput(food.orderItems.join('\n'));
     }
-    setMapsUrlInput(food.mapsUrl || '');
-  }, [food.title, food.restaurant, food.genre, food.orderItems, food.mapsUrl]);
+    setStillUrlInput(food.stillUrl || '');
+  }, [
+    food.title,
+    food.restaurant,
+    food.genre,
+    food.mapsUrl,
+    food.year,
+    food.cravingLevel,
+    food.orderItems,
+    food.stillUrl,
+  ]);
+
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [food.url]);
 
   const triggerSavedBadge = () => {
     setIsSaved(true);
     const timer = setTimeout(() => setIsSaved(false), 2000);
     return () => clearTimeout(timer);
-  };
-
-  const handleCycleCraving = () => {
-    const current = food.cravingLevel || CRAVING_VERDICTS[0];
-    const idx = CRAVING_VERDICTS.indexOf(current);
-    const next = CRAVING_VERDICTS[(idx + 1) % CRAVING_VERDICTS.length];
-    updateMonthFoodDetails(monthId, { cravingLevel: next });
-    triggerSavedBadge();
   };
 
   const handleReasonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -125,122 +141,136 @@ export default function FoodBannerWidget({
 
   const handleStarClick = (starIndex: number) => {
     if (!isEditing) return;
-    setRatingInput(starIndex.toFixed(1));
-    updateMonthFoodDetails(monthId, { rating: starIndex });
+    const newRating = starIndex;
+    setRatingInput(newRating.toFixed(1));
+    updateMonthFoodDetails(monthId, { rating: newRating });
   };
 
   const handleDetailBlur = () => {
-    const parsedItems = orderTextInput
+    const parsedItems = orderInput
       .split('\n')
-      .map((line) => line.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
 
     updateMonthFoodDetails(monthId, {
       title: titleInput.trim() || 'Signature Dish',
-      restaurant: restaurantInput.trim() || 'Maison de Deux',
+      restaurant: restaurantInput.trim() || 'Table for Two',
       genre: genreInput.trim() || 'Fine Dining',
+      mapsUrl: ticketUrlInput.trim() || undefined,
+      year: yearInput.trim() || undefined,
+      cravingLevel: cravingInput.trim() || undefined,
       orderItems: parsedItems.length > 0 ? parsedItems : [`1x ${titleInput.trim() || 'Signature Dish'}`],
-      mapsUrl: mapsUrlInput.trim() || undefined,
+      stillUrl: stillUrlInput.trim() || undefined,
     });
     triggerSavedBadge();
   };
 
   const parsed = parseMusicUrl(food.url);
 
+  // Poster derived values
+  const yearMatch = (food.title || '').match(/^(.*?)\s*\((\d{4})\)\s*$/);
+  const posterTitle = (yearMatch ? yearMatch[1] : food.title) || 'Signature Dish';
+  const posterYear = food.year || (yearMatch ? yearMatch[2] : String(year));
+  const stillImage = food.stillUrl || food.thumbnailUrl || food.url;
+  const trailerEmbed =
+    parsed.platform === 'youtube' && parsed.embedUrl
+      ? `${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}autoplay=1`
+      : null;
+
+  // Poster print palette (identical to Movie)
+  const paperBg = isDimmed ? '#15120F' : '#ECE9E2';
+  const inkColor = isDimmed ? '#F1ECE2' : '#1E1B18';
+  const mutedInk = isDimmed ? '#8F877C' : '#7A756F';
+  const ruleColor = isDimmed ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
+
   const currentRating = food.rating ?? 9.6;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
 
+  // Scannable QR Code for the Dinner Receipt Stub
   const targetQrUrl = food.mapsUrl?.trim() || food.url;
-  const qrCodeUrl = getQrCodeImageUrl(targetQrUrl, '2B1D19', 'FAF6EE', 240);
+  const qrCodeUrl = getQrCodeImageUrl(
+    targetQrUrl,
+    inkColor.replace('#', ''),
+    paperBg.replace('#', ''),
+    280
+  );
 
-  const displayOrderItems =
-    food.orderItems && food.orderItems.length > 0
-      ? food.orderItems
-      : [
-          `1x ${food.title || 'Signature Dish'}`,
-          '2x Verre de Maison',
-          '1x Dessert Partagé ♡',
-        ];
+  // Shared pill styling for the poster's top control bar
+  const pillBase =
+    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all cursor-pointer border active:scale-95';
+  const pillIdle = isDimmed
+    ? 'border-white/15 text-[#F1ECE2]/80 hover:text-[#F1ECE2] hover:bg-white/10'
+    : 'border-black/10 text-[#1E1B18]/70 hover:text-[#1E1B18] hover:bg-black/5';
 
-  // Woven Linen & Porcelain Table Palette
-  const linenSurface = '#F5EFE4';
-  const mahoganyFrame = '#3B231E';
-  const burgundyInk = '#6E2226';
-  const espressoInk = '#261B17';
+  const editField =
+    'w-full bg-transparent outline-none border-b border-dashed pb-0.5 placeholder:opacity-40 focus:border-solid';
 
   return (
-    <div className="w-full max-w-2xl sm:max-w-3xl mx-auto py-2">
+    <div className="w-full max-w-xl mx-auto py-2">
       {/* 3D Flip Card Container */}
       <div
         className="w-full relative [perspective:2000px] select-none"
-        style={{ minHeight: '860px' }}
+        style={{ minHeight: '820px' }}
       >
         <div
-          className="w-full relative rounded-3xl"
+          className="w-full relative rounded-md"
           style={{
             transformStyle: 'preserve-3d',
             transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             transition: 'transform 0.75s cubic-bezier(0.4, 0.0, 0.2, 1)',
-            minHeight: '860px',
+            minHeight: '820px',
           }}
         >
           {/* ========================================================
-              FRONT SIDE: Fine Bistro Linen Placemat & Porcelain Plate
+              FRONT SIDE: Minimalist Food Poster Print
              ======================================================== */}
           <div
-            className={`w-full rounded-3xl p-6 sm:p-9 shadow-2xl relative flex flex-col justify-between overflow-hidden ${
+            className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
-              backgroundColor: linenSurface,
-              backgroundImage: `
-                radial-gradient(rgba(158, 120, 64, 0.06) 1px, transparent 0),
-                radial-gradient(rgba(110, 34, 38, 0.04) 1px, transparent 0)
-              `,
-              backgroundSize: '20px 20px',
-              backgroundPosition: '0 0, 10px 10px',
-              color: espressoInk,
-              border: `6px solid ${mahoganyFrame}`,
-              boxShadow:
-                '0 30px 70px -15px rgba(20, 12, 9, 0.65), inset 0 0 0 2px rgba(158, 120, 64, 0.45)',
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDimmed
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(0deg)',
-              minHeight: '860px',
+              minHeight: '820px',
             }}
           >
-            {/* Inner Bistro Menu Double Frame Border */}
-            <div
-              className="absolute inset-3 sm:inset-4 rounded-2xl pointer-events-none"
-              style={{
-                border: '1px solid rgba(110, 34, 38, 0.25)',
-                boxShadow: 'inset 0 0 0 3px rgba(245, 239, 228, 1), inset 0 0 0 4px rgba(158, 120, 64, 0.3)',
-              }}
-            />
-
-            {/* Top Bar: Vintage Brass Table Verdict Tag & Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-2 relative z-20 px-1 pt-1">
+            {/* Top Bar: Dim Lights · Edit/Done · Flip Ticket */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <button
                 type="button"
-                onClick={handleCycleCraving}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ECE3D3] hover:bg-[#E3D6C1] border border-[#C5B293] text-[10px] sm:text-[11px] font-mono font-semibold tracking-wider text-[#5A3E28] transition-all cursor-pointer shadow-2xs"
-                title="Click to cycle Sommelier & Chef's Verdict"
+                onClick={onToggleDim}
+                className={`${pillBase} ${
+                  isDimmed ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
+                }`}
+                title={isDimmed ? 'Turn the lights back on' : 'Dim the lights for a midnight print'}
               >
-                <span className="w-2 h-2 rounded-full bg-[#7A2828]" />
-                <span className="truncate max-w-[200px] sm:max-w-xs uppercase">
-                  {food.cravingLevel || CRAVING_VERDICTS[0]}
-                </span>
+                {isDimmed ? (
+                  <>
+                    <Lightbulb className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                    <span>Lights On</span>
+                  </>
+                ) : (
+                  <>
+                    <LightbulbOff className="w-3.5 h-3.5" />
+                    <span>Dim Lights</span>
+                  </>
+                )}
               </button>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer border ${
-                    isEditing
-                      ? 'bg-[#7A2828] text-[#FAF6EE] border-[#571919] shadow-sm'
-                      : 'bg-[#ECE3D3] hover:bg-[#E3D6C1] border-[#C5B293] text-[#3B2A22]'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
+                  title={isEditing ? 'Save and lock edits' : 'Edit dish details and rating'}
                 >
                   {isEditing ? (
                     <>
@@ -259,238 +289,306 @@ export default function FoodBannerWidget({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setIsPlaying(false);
                     setIsFlipped(true);
                   }}
-                  className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2B1D19] hover:bg-[#3D2923] active:scale-95 border border-[#8C6C3E]/50 transition-all text-xs font-semibold text-[#F5EFE4] cursor-pointer shadow-sm"
-                  title="Flip plate over to inspect Backstamp & Tasting Ledger"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip to view Dinner Receipt & Table Notes"
                 >
-                  <Repeat className="w-3.5 h-3.5 text-[#D8B478] group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Flip Plate ↺</span>
+                  <Ticket className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
+                  <span>Flip Receipt</span>
                 </button>
               </div>
             </div>
 
             {/* ========================================================
-                1. CENTERPIECE: PICTURE ON A PORCELAIN PLATE
+                1. DISH PHOTO STILL (click play to roll video)
                ======================================================== */}
-            <div className="relative z-10 my-1">
-              <PorcelainPlateFrame
-                imageUrl={food.thumbnailUrl || food.url}
-                embedUrl={parsed.embedUrl}
-                isYoutube={parsed.platform === 'youtube'}
-                title={food.title || 'Signature Dish'}
-                restaurant={food.restaurant || 'MAISON DE DEUX'}
-                monthLabel={`${monthName.toUpperCase()} ${year} • N° 02`}
-              />
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/80 group">
+              {isPlaying && trailerEmbed ? (
+                <iframe
+                  src={trailerEmbed}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                  title={posterTitle}
+                />
+              ) : (
+                <>
+                  {stillImage ? (
+                    <img
+                      src={stillImage}
+                      alt={posterTitle}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Utensils className="w-14 h-14 text-white/30" />
+                    </div>
+                  )}
+
+                  {trailerEmbed ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsPlaying(true)}
+                      className="absolute inset-0 flex items-center justify-center cursor-pointer"
+                      title="Play dish video"
+                    >
+                      <span className="w-14 h-14 rounded-full bg-white/85 group-hover:bg-white group-hover:scale-110 transition-all flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-[#1E1B18] fill-[#1E1B18] ml-0.5" />
+                      </span>
+                    </button>
+                  ) : (
+                    <a
+                      href={food.mapsUrl || food.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
+                        Open Restaurant / Maps ↗
+                      </span>
+                    </a>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* ========================================================
-                2. BISTRO MENU TYPOGRAPHY & VINTAGE GASTRONOMIC SCORE
-               ======================================================== */}
-            <div className="relative z-10 text-center space-y-3 my-1 px-2">
-              <div className="flex items-center justify-center gap-3 text-[10px] font-mono uppercase tracking-[0.28em] text-[#8A6D46]">
-                <span className="h-px w-8 sm:w-14 bg-[#C7B599]" />
-                <span>PLAT DU MOIS · COURSE OF THE MONTH</span>
-                <span className="h-px w-8 sm:w-14 bg-[#C7B599]" />
+            {/* Optional custom still URL while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  photo image
+                </span>
+                <input
+                  type="url"
+                  value={stillUrlInput}
+                  onChange={(e) => setStillUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: paste dish photo URL..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
               </div>
+            )}
 
+            {/* ========================================================
+                2. TITLE + YEAR
+               ======================================================== */}
+            <div className="mt-6">
               {isEditing ? (
-                <div className="max-w-md mx-auto space-y-2 bg-[#EBE1CF]/90 p-3.5 rounded-2xl border border-[#B89B6E] shadow-inner">
+                <div className="flex items-end gap-3">
                   <input
                     type="text"
                     value={titleInput}
                     onChange={(e) => setTitleInput(e.target.value)}
                     onBlur={handleDetailBlur}
-                    placeholder="Dish Name (e.g. Truffle Tagliolini & Wagyu)"
-                    className="w-full bg-transparent text-center font-serif text-xl sm:text-2xl font-bold text-[#261B17] outline-none border-b border-[#C5B293] pb-1"
+                    placeholder="DISH TITLE"
+                    className={`${editField} font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
                   />
                   <input
                     type="text"
-                    value={restaurantInput}
-                    onChange={(e) => setRestaurantInput(e.target.value)}
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
                     onBlur={handleDetailBlur}
-                    placeholder="Restaurant / Kitchen (e.g. Osteria Romana)"
-                    className="w-full bg-transparent text-center font-serif italic text-sm sm:text-base font-medium text-[#7A2828] outline-none border-b border-[#C5B293] pb-1"
-                  />
-                  <input
-                    type="text"
-                    value={genreInput}
-                    onChange={(e) => setGenreInput(e.target.value)}
-                    onBlur={handleDetailBlur}
-                    placeholder="Cuisine Style (e.g. Italian Fine Dining)"
-                    className="w-full bg-transparent text-center font-mono text-xs uppercase tracking-widest text-[#6E5638] outline-none pt-0.5"
+                    placeholder="YEAR"
+                    className={`${editField} font-poster text-lg sm:text-xl w-16 shrink-0`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
                   />
                 </div>
               ) : (
-                <div className="space-y-1">
-                  <h3 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#231915] line-clamp-2">
-                    {food.title || 'Signature Dish'}
-                  </h3>
-                  <p
-                    className="font-serif italic text-base sm:text-lg font-medium"
-                    style={{ color: burgundyInk }}
+                <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl">
+                  {posterTitle}
+                  <span
+                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2 align-baseline"
+                    style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
                   >
-                    {food.restaurant || 'Maison de Deux'}
-                  </p>
-                </div>
-              )}
-
-              {/* Cuisine Classification Pill */}
-              {!isEditing && (
-                <div className="flex items-center justify-center pt-0.5">
-                  <span className="px-4 py-1 rounded-full text-[11px] font-mono font-semibold tracking-[0.2em] uppercase bg-[#EAE0CE] border border-[#C6B394] text-[#5C4328]">
-                    {food.genre || 'Fine Dining'}
+                    {posterYear}
                   </span>
-                </div>
+                </h3>
               )}
+            </div>
 
-              {/* Vintage Brass Gastronomic Rating Plaque */}
-              <div className="pt-1 flex flex-col items-center gap-1.5">
-                <div className="inline-flex flex-wrap items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-[#261B17] border border-[#8F6F40] shadow-md text-[#F5EFE4]">
-                  <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#C9A66B] mr-1">
-                    GASTRONOMIE
+            {/* ========================================================
+                3. METADATA ROWS: cuisine · restaurant · verdict · rated
+               ======================================================== */}
+            <div className="mt-4 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide">
+              {[
+                {
+                  label: 'cuisine',
+                  value: food.genre || 'Fine Dining',
+                  input: genreInput,
+                  setInput: setGenreInput,
+                  placeholder: 'ITALIAN FINE DINING',
+                },
+                {
+                  label: 'restaurant',
+                  value: food.restaurant || 'Table for Two',
+                  input: restaurantInput,
+                  setInput: setRestaurantInput,
+                  placeholder: 'RESTAURANT NAME',
+                },
+                {
+                  label: 'verdict',
+                  value: food.cravingLevel || 'Would travel 2 hrs just to eat this again! 🍷',
+                  input: cravingInput,
+                  setInput: setCravingInput,
+                  placeholder: 'CHEF VERDICT / CRAVING LEVEL',
+                },
+              ].map((row) => (
+                <div key={row.label} className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    {row.label}
                   </span>
-
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((pipIndex) => {
-                      const active = pipIndex <= displayRating;
-                      return (
-                        <button
-                          key={pipIndex}
-                          type="button"
-                          disabled={!isEditing}
-                          onClick={() => handleStarClick(pipIndex)}
-                          onMouseEnter={() => isEditing && setHoverRating(pipIndex)}
-                          onMouseLeave={() => isEditing && setHoverRating(null)}
-                          className={`w-4 h-4 sm:w-4.5 sm:h-4.5 flex items-center justify-center transition-transform ${
-                            isEditing ? 'hover:scale-125 cursor-pointer' : 'cursor-default'
-                          }`}
-                          title={`Rate ${pipIndex} / 10`}
-                        >
-                          <span
-                            className={`text-xs sm:text-sm leading-none transition-colors ${
-                              active
-                                ? 'text-[#E3B76B] drop-shadow-[0_0_4px_rgba(227,183,107,0.5)]'
-                                : 'text-[#5C4A42]'
-                            }`}
-                          >
-                            ✦
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="h-4 w-px bg-[#5C4A42] mx-1" />
-
                   {isEditing ? (
-                    <div className="flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded border border-[#C9A66B]/50">
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="10"
-                        value={ratingInput}
-                        onChange={handleRatingInputChange}
-                        className="w-11 bg-transparent text-xs sm:text-sm font-mono font-bold text-[#E3B76B] outline-none text-center"
-                      />
-                      <span className="font-mono text-[10px] text-[#A39286]">/10</span>
-                    </div>
+                    <input
+                      type="text"
+                      value={row.input}
+                      onChange={(e) => row.setInput(e.target.value)}
+                      onBlur={handleDetailBlur}
+                      placeholder={row.placeholder}
+                      className={`${editField} uppercase`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                    />
                   ) : (
-                    <span className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#E3B76B]">
-                      {currentRating.toFixed(1)} <span className="text-[10px] text-[#9E8C7E]">/ 10</span>
-                    </span>
+                    <span className="uppercase font-normal truncate">{row.value}</span>
                   )}
                 </div>
+              ))}
 
+              {/* Food Rating row (locked unless editing) */}
+              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-center">
+                <span className="font-light lowercase" style={{ color: mutedInk }}>
+                  rated
+                </span>
                 {isEditing ? (
-                  <span className="text-[10px] text-[#7A2828] font-mono tracking-wide">
-                    Click rosettes or type decimal to adjust • click Done to lock
-                  </span>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((starIndex) => (
+                      <button
+                        key={starIndex}
+                        type="button"
+                        onClick={() => handleStarClick(starIndex)}
+                        onMouseEnter={() => setHoverRating(starIndex)}
+                        onMouseLeave={() => setHoverRating(null)}
+                        className="p-0.5 hover:scale-125 transition-transform cursor-pointer"
+                        title={`Rate ${starIndex}/10`}
+                      >
+                        <Star
+                          className={`w-3.5 h-3.5 ${
+                            starIndex <= displayRating
+                              ? 'text-amber-500 fill-amber-500'
+                              : 'opacity-25'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      value={ratingInput}
+                      onChange={handleRatingInputChange}
+                      className={`${editField} w-12 ml-1 text-center font-mono text-xs`}
+                      style={{ borderColor: ruleColor, color: inkColor }}
+                      title="Edit decimal rating"
+                    />
+                    <span className="text-xs" style={{ color: mutedInk }}>/ 10</span>
+                  </div>
                 ) : (
-                  <span className="text-[10px] text-[#857362] font-mono flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" />
-                    <span>Gastronomic rating sealed</span>
+                  <span className="uppercase flex items-center gap-1.5">
+                    <span>🍷 {currentRating.toFixed(1)} / 10</span>
+                    <Lock className="w-3 h-3 opacity-30" />
                   </span>
                 )}
               </div>
             </div>
 
-            {/* Bottom Actions Row */}
-            <div className="relative z-10 mt-3 pt-3 border-t border-[#D6C7B0] flex items-center justify-between px-2">
-              <a
-                href={targetQrUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-[#6E5638] hover:text-[#261B17] transition-colors"
-              >
-                <span>Inspect Dish / Restaurant Link</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+            {/* ========================================================
+                4. TABLE (mirrors Movie's "starring" line)
+               ======================================================== */}
+            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
+              <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
+                table
+              </span>
+              <span className="uppercase tracking-wider">GOOGLE &nbsp;·&nbsp; NAMI &nbsp;(TABLE N° 02)</span>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setIsConfirmingDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full hover:bg-[#7A2828]/10 text-[#8C7A68] hover:text-[#7A2828] transition-colors cursor-pointer text-xs font-mono"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Plate</span>
-              </button>
+            {/* Footer: couple print stamp · open link · remove */}
+            <div
+              className="mt-auto pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={food.mapsUrl || food.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full hover:opacity-100 opacity-80 transition-opacity"
+                  title="Open restaurant link"
+                >
+                  <span>Restaurant</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingDelete(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  title="Remove logged dish"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* ========================================================
-              BACK SIDE: Porcelain Plate Underside Stamp & Tasting Ledger
+              BACK SIDE: Poster-Print Dinner Receipt + Table Notes
              ======================================================== */}
           <div
-            className={`w-full absolute inset-0 rounded-3xl p-6 sm:p-9 shadow-2xl flex flex-col justify-between overflow-hidden ${
+            className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
               isFlipped ? 'pointer-events-auto z-30' : 'pointer-events-none z-0'
             }`}
             style={{
-              backgroundColor: linenSurface,
-              backgroundImage: `
-                radial-gradient(rgba(158, 120, 64, 0.06) 1px, transparent 0),
-                radial-gradient(rgba(110, 34, 38, 0.04) 1px, transparent 0)
-              `,
-              backgroundSize: '20px 20px',
-              backgroundPosition: '0 0, 10px 10px',
-              color: espressoInk,
-              border: `6px solid ${mahoganyFrame}`,
-              boxShadow:
-                '0 30px 70px -15px rgba(20, 12, 9, 0.65), inset 0 0 0 2px rgba(158, 120, 64, 0.45)',
+              backgroundColor: paperBg,
+              color: inkColor,
+              boxShadow: isDimmed
+                ? '0 35px 80px -15px rgba(0,0,0,0.9)'
+                : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateY(180deg)',
-              minHeight: '860px',
+              minHeight: '820px',
             }}
           >
-            {/* Inner Bistro Menu Double Frame Border */}
-            <div
-              className="absolute inset-3 sm:inset-4 rounded-2xl pointer-events-none"
-              style={{
-                border: '1px solid rgba(110, 34, 38, 0.25)',
-                boxShadow: 'inset 0 0 0 3px rgba(245, 239, 228, 1), inset 0 0 0 4px rgba(158, 120, 64, 0.3)',
-              }}
-            />
-
-            {/* Back Top Bar */}
-            <div className="flex items-center justify-between relative z-40 px-1 pt-1">
-              <div className="flex items-center gap-2">
-                <Utensils className="w-3.5 h-3.5 text-[#7A2828]" />
-                <span className="text-[11px] uppercase tracking-[0.2em] text-[#5C4328] font-mono font-semibold">
-                  Plate Backstamp & L’Addition
-                </span>
-              </div>
+            {/* Top Bar: section label · Edit/Done · Flip Back */}
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <span
+                className="font-mono text-[11px] tracking-widest uppercase"
+                style={{ color: mutedInk }}
+              >
+                Dinner Receipt &amp; Table Notes
+              </span>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={onToggleEdit}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer border ${
-                    isEditing
-                      ? 'bg-[#7A2828] text-[#FAF6EE] border-[#571919] shadow-sm'
-                      : 'bg-[#ECE3D3] hover:bg-[#E3D6C1] border-[#C5B293] text-[#3B2A22]'
+                  className={`${pillBase} ${
+                    isEditing ? 'bg-amber-400 border-amber-400 text-stone-900 hover:bg-amber-300' : pillIdle
                   }`}
+                  title={isEditing ? 'Save and lock notes' : 'Edit notes and maps link'}
                 >
                   {isEditing ? (
                     <>
@@ -511,231 +609,214 @@ export default function FoodBannerWidget({
                     e.stopPropagation();
                     setIsFlipped(false);
                   }}
-                  className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2B1D19] hover:bg-[#3D2923] active:scale-95 border border-[#8C6C3E]/50 transition-all text-xs font-semibold text-[#F5EFE4] cursor-pointer shadow-sm relative z-50"
+                  className={`group ${pillBase} ${pillIdle}`}
+                  title="Flip back to the poster"
                 >
-                  <Repeat className="w-3.5 h-3.5 text-[#D8B478] group-hover:-rotate-180 transition-transform duration-500" />
-                  <span>Front of Plate</span>
+                  <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
+                  <span>Flip Back</span>
                 </button>
               </div>
             </div>
 
             {/* ========================================================
-                PORCELAIN UNDERSIDE FOOT-RING & BISTRO L'ADDITION
+                1. HEADLINE
                ======================================================== */}
-            <div className="relative z-30 my-2 flex flex-col items-center">
-              <div
-                className="w-full max-w-lg rounded-3xl p-5 sm:p-6 relative overflow-hidden"
-                style={{
-                  background:
-                    'radial-gradient(circle at 50% 50%, #FCFBF8 0%, #F4EFE4 72%, #E5DCCB 100%)',
-                  boxShadow:
-                    '0 16px 35px -10px rgba(35, 22, 16, 0.25), inset 0 0 0 6px #DFD4C0, inset 0 0 0 8px rgba(122, 40, 40, 0.28)',
-                  border: '1px solid #CBBBA0',
-                }}
+            <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
+              Table For Two
+              <span
+                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
+                style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
               >
-                {/* Porcelain Kiln Backstamp Header */}
-                <div className="text-center border-b border-dashed border-[#C2B299] pb-3 mb-3">
-                  <p className="text-[9px] font-mono uppercase tracking-[0.28em] text-[#8A6D46]">
-                    ✦ PORCELAINE DE TABLE • FABRIQUÉ POUR DEUX ✦
-                  </p>
-                  <p className="font-serif font-bold text-base sm:text-lg tracking-wide text-[#261B17] mt-0.5">
-                    {(food.restaurant || 'MAISON DE DEUX').toUpperCase()}
-                  </p>
-                  <p className="text-[10px] font-mono text-[#786652] tracking-wider uppercase">
-                    Table N° 02 • Service: {monthName} {year}
-                  </p>
-                </div>
+                Google &amp; Nami
+              </span>
+            </h3>
 
-                {/* Courses / Order Line Items + QR Backstamp */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="w-full flex-1 space-y-2 font-mono text-xs">
-                    <div className="text-[10px] uppercase tracking-widest text-[#7A2828] font-bold">
-                      Menu Dégustation / Courses Ordered:
-                    </div>
-
-                    {isEditing ? (
-                      <textarea
-                        value={orderTextInput}
-                        onChange={(e) => setOrderTextInput(e.target.value)}
-                        onBlur={handleDetailBlur}
-                        rows={3}
-                        placeholder="One course or drink per line..."
-                        className="w-full p-2 rounded-lg bg-[#FAF6EE] border border-[#B89B6E] text-xs font-mono text-[#261B17] outline-none resize-none"
-                      />
-                    ) : (
-                      <div className="space-y-1.5 py-0.5">
-                        {displayOrderItems.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between gap-2 border-b border-dotted border-[#D5C7B2] pb-1 text-[#2E211C]"
-                          >
-                            <span className="truncate">{item}</span>
-                            <span className="text-[#8A6D46] text-[10px] shrink-0">INCL.</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="pt-1 flex items-center justify-between text-[11px] font-bold">
-                      <span className="text-[#5C4328]">NOTE GASTRONOMIQUE:</span>
-                      <span className="text-[#7A2828]">✦ {currentRating.toFixed(1)} / 10.0</span>
-                    </div>
-                  </div>
-
-                  {/* Ceramic Kiln QR Stamp */}
-                  <a
-                    href={targetQrUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 flex flex-col items-center p-2 rounded-2xl border border-[#C5B293] bg-[#FAF6EE] hover:scale-105 transition-transform shadow-xs"
-                    title="Scan or click to open Restaurant / Google Maps"
+            {/* ========================================================
+                2. MINIMAL RECEIPT STUB: metadata rows + tear-off QR
+               ======================================================== */}
+            <div
+              className="mt-5 flex flex-col sm:flex-row border"
+              style={{ borderColor: ruleColor }}
+            >
+              <div
+                className="flex-1 p-4 sm:p-5 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide border-b sm:border-b-0 sm:border-r border-dashed"
+                style={{ borderColor: ruleColor }}
+              >
+                {[
+                  { label: 'dish', value: posterTitle },
+                  { label: 'restaurant', value: food.restaurant || '—' },
+                  { label: 'date', value: `${monthName} ${year}` },
+                  { label: 'table', value: 'Table N° 02 · For Two ♡' },
+                  { label: 'rated', value: `🍷 ${currentRating.toFixed(1)} / 10` },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
                   >
-                    <img src={qrCodeUrl} alt="Restaurant QR" className="w-16 h-16 sm:w-18 sm:h-18" />
-                    <span className="text-[8px] font-mono tracking-widest text-[#6E5638] uppercase mt-1">
-                      CARTE / MAPS
+                    <span className="font-light lowercase" style={{ color: mutedInk }}>
+                      {row.label}
                     </span>
-                  </a>
-                </div>
-
-                {isEditing && (
-                  <div className="mt-3 pt-2 border-t border-dashed border-[#C2B299] flex items-center gap-2 text-xs">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-[#7A2828] whitespace-nowrap">
-                      Maps Link:
-                    </span>
-                    <input
-                      type="url"
-                      value={mapsUrlInput}
-                      onChange={(e) => setMapsUrlInput(e.target.value)}
-                      onBlur={handleDetailBlur}
-                      placeholder="Optional: Paste Google Maps restaurant URL..."
-                      className="flex-1 bg-[#FAF6EE] px-2.5 py-1 rounded border border-[#C5B293] text-[#261B17] placeholder-[#9E8D7B] outline-none text-xs font-mono"
-                    />
+                    <span className="uppercase truncate">{row.value}</span>
                   </div>
-                )}
+                ))}
+              </div>
+
+              {/* Tear-off QR stub */}
+              <div className="sm:w-36 p-4 flex flex-col items-center justify-center gap-1.5 shrink-0">
+                <a
+                  href={targetQrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-80 transition-opacity"
+                  title="Scan or click to open Google Maps restaurant link"
+                >
+                  <img src={qrCodeUrl} alt="Restaurant Maps QR code" className="w-20 h-20" />
+                </a>
+                <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: mutedInk }}>
+                  MAPS #{monthId.replace('-', '')}02
+                </span>
               </div>
             </div>
 
+            {/* Optional Maps QR link while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  maps link
+                </span>
+                <input
+                  type="url"
+                  value={ticketUrlInput}
+                  onChange={(e) => setTicketUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: Google Maps restaurant link for the QR..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
+
             {/* ========================================================
-                SOMMELIER & TABLE MEMORY JOURNAL
+                3. TABLE NOTES: what were we laughing about over dinner
                ======================================================== */}
-            <div className="relative z-30 my-2 flex-1 flex flex-col px-1">
-              <div className="flex items-center justify-between mb-1.5 px-1">
-                <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#4A3525] flex items-center gap-2 flex-wrap">
-                  <span>Table Conversation & Tasting Notes</span>
-                  {isEditing ? (
-                    <span className="text-[11px] text-[#7A2828] font-normal lowercase">
-                      (editing journal)
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-[#857362] font-normal lowercase flex items-center gap-1">
-                      <Lock className="w-3 h-3" />
-                      <span>sealed • click Edit above to write</span>
-                    </span>
-                  )}
-                </label>
-                {isSaved && (
-                  <span className="text-[11px] text-[#2E6B47] font-mono font-semibold flex items-center gap-1 animate-in fade-in">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Saved to Menu ♡</span>
+            <div className="mt-6 flex-1 flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
+                <span>
+                  <span className="font-light lowercase" style={{ color: mutedInk }}>
+                    notes
                   </span>
+                  <span className="uppercase ml-3">What were we laughing about over dinner</span>
+                </span>
+                {isSaved ? (
+                  <span className="text-[11px] font-mono text-emerald-600 flex items-center gap-1 shrink-0">
+                    <Check className="w-3 h-3" />
+                    Saved ♡
+                  </span>
+                ) : (
+                  !isEditing && <Lock className="w-3 h-3 opacity-30 shrink-0" />
                 )}
               </div>
 
-              <div
-                className={`flex-1 relative rounded-2xl overflow-hidden border transition-all ${
-                  isEditing
-                    ? 'border-[#7A2828] bg-[#FCFBF8] ring-2 ring-[#7A2828]/15'
-                    : 'border-[#C8B79C] bg-[#FAF6EE]/90'
-                }`}
-                style={{
-                  backgroundImage:
-                    'repeating-linear-gradient(transparent, transparent 27px, rgba(197, 178, 147, 0.35) 28px)',
-                }}
-              >
+              <div className="flex-1 relative border" style={{ borderColor: ruleColor }}>
                 {isEditing ? (
                   <textarea
                     value={reasonText}
                     onChange={handleReasonChange}
-                    placeholder="Write down what we were laughing about over dinner, whose dish won the night, or the sweetest moment at the table..."
-                    className="w-full h-full min-h-[175px] p-4 sm:p-5 text-sm sm:text-base text-[#261B17] placeholder-[#9C8B7A] bg-transparent outline-none resize-none font-serif leading-[28px]"
+                    placeholder="Write down the conversation over dinner, whose dish was better, or the sweetest moment at the table..."
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base bg-transparent outline-none resize-none font-serif leading-relaxed placeholder:opacity-40"
+                    style={{ color: inkColor }}
                   />
                 ) : (
                   <div
                     onClick={onToggleEdit}
-                    className="w-full h-full min-h-[175px] p-4 sm:p-5 text-sm sm:text-base text-[#2E211C] font-serif leading-[28px] whitespace-pre-wrap cursor-pointer"
-                    title="Click Edit to modify tasting notes"
+                    className="w-full h-full min-h-[220px] p-4 sm:p-5 text-sm sm:text-base font-serif leading-relaxed whitespace-pre-wrap cursor-pointer"
+                    title="Click to edit"
                   >
                     {reasonText.trim() ? (
                       reasonText
                     ) : (
-                      <span className="text-[#968471] italic">
-                        No table notes written yet. Click &quot;Edit&quot; above to record your dinner conversation and tasting memory...
+                      <span className="italic" style={{ color: mutedInk }}>
+                        No table notes yet. Click Edit to write down your favorite dinner memories...
                       </span>
                     )}
                   </div>
                 )}
-                <div className="absolute bottom-2.5 right-4 pointer-events-none text-[10px] font-mono text-[#8C7A68] bg-[#FAF6EE]/80 px-1.5 rounded">
-                  {reasonText.length} chars
-                </div>
+                <span
+                  className="absolute bottom-2 right-3 pointer-events-none font-mono text-[10px]"
+                  style={{ color: mutedInk }}
+                >
+                  {reasonText.length}
+                </span>
               </div>
             </div>
 
-            {/* Back Bottom Bar */}
-            <div className="relative z-40 pt-3 border-t border-[#D6C7B0] flex items-center justify-between text-xs text-[#6E5638] px-2">
+            {/* Footer: couple print stamp · flip back */}
+            <div
+              className="pt-6 flex items-center justify-between gap-3 text-[11px]"
+              style={{ color: mutedInk }}
+            >
+              <span className="font-mono tracking-widest uppercase truncate">
+                Ever Together ♡ {monthName.slice(0, 3)} {year}
+              </span>
               <button
                 type="button"
                 onClick={() => setIsFlipped(false)}
-                className="hover:text-[#261B17] transition-colors cursor-pointer flex items-center gap-1.5 font-mono uppercase tracking-wider text-[11px]"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
               >
-                <Repeat className="w-3.5 h-3.5" />
-                <span>Return to Plated Dish</span>
+                <Repeat className="w-3 h-3" />
+                <span>Back to poster</span>
               </button>
-
-              <span className="font-serif italic text-[#7A2828]/80">
-                Maison Google & Nami ♡
-              </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Popup Modal for Removing Food */}
+      {/* ========================================================
+          CONFIRMATION POPUP MODAL FOR REMOVING FOOD
+         ======================================================== */}
       {isConfirmingDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setIsConfirmingDelete(false)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl p-6 sm:p-7 shadow-2xl border-4 border-[#3B231E] text-center animate-in zoom-in-95 duration-200 space-y-4"
+            className="w-full max-w-sm rounded-md p-6 sm:p-7 shadow-2xl border text-center animate-in zoom-in-95 duration-200 space-y-4"
             style={{
-              backgroundColor: linenSurface,
-              color: espressoInk,
+              backgroundColor: paperBg,
+              color: inkColor,
+              borderColor: ruleColor,
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-center text-[#7A2828]">
+            <div className="flex justify-center text-red-500">
               <AlertTriangle className="w-8 h-8 stroke-[1.75]" />
             </div>
 
             <div className="space-y-1.5">
-              <h4 className="font-serif text-xl font-bold tracking-tight text-[#261B17]">
-                Clear this plate from the table?
+              <h4 className="font-poster uppercase text-2xl font-bold tracking-tight">
+                Remove this dish?
               </h4>
-              <p className="text-xs sm:text-sm text-[#6E5638] leading-relaxed px-2">
-                This will remove the plated dish photo, tasting courses, and dinner notes for {monthName} {year}.
+              <p className="text-xs sm:text-sm leading-relaxed px-2" style={{ color: mutedInk }}>
+                This will delete the logged dish, receipt, and table notes for {monthName} {year}.
               </p>
             </div>
 
-            <div className="py-2 px-3 rounded-xl bg-[#EAE0CE] border border-[#C6B394] text-xs text-[#261B17] truncate font-serif">
-              <span className="font-bold">{food.title || 'Plated Dish'}</span>
-              {food.restaurant && <span className="italic text-[#7A2828]"> • {food.restaurant}</span>}
+            <div
+              className="py-2 px-3 border text-xs truncate font-poster uppercase tracking-wide"
+              style={{ borderColor: ruleColor }}
+            >
+              <span>{posterTitle}</span>
+              {food.restaurant && (
+                <span style={{ color: mutedInk }}> · {food.restaurant}</span>
+              )}
             </div>
 
             <div className="flex items-center gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setIsConfirmingDelete(false)}
-                className="flex-1 py-2.5 px-4 rounded-full bg-[#EAE0CE] hover:bg-[#DFD2BC] active:scale-95 text-[#261B17] text-xs sm:text-sm font-semibold transition-all border border-[#C6B394] cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-full text-xs sm:text-sm font-semibold transition-all border cursor-pointer"
+                style={{ borderColor: ruleColor, color: inkColor }}
               >
                 Cancel
               </button>
@@ -745,9 +826,9 @@ export default function FoodBannerWidget({
                   setIsConfirmingDelete(false);
                   deleteMonthFood(monthId);
                 }}
-                className="flex-1 py-2.5 px-4 rounded-full bg-[#7A2828] hover:bg-[#5E1D1D] active:scale-95 text-[#FAF6EE] text-xs sm:text-sm font-semibold transition-all shadow-md cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-full bg-red-600 hover:bg-red-500 active:scale-95 text-white text-xs sm:text-sm font-semibold transition-all shadow-md cursor-pointer"
               >
-                Clear Plate
+                Yes, Remove
               </button>
             </div>
           </div>

@@ -17,8 +17,9 @@ import {
   Check,
   Lock,
   AlertTriangle,
-  Sun,
-  Moon,
+  Lightbulb,
+  LightbulbOff,
+  Ticket,
   Play,
 } from 'lucide-react';
 
@@ -29,8 +30,8 @@ interface MemoryBannerWidgetProps {
   year: number;
   isEditing: boolean;
   onToggleEdit: () => void;
-  isDarkroom: boolean;
-  onToggleDarkroom: () => void;
+  isDimmed: boolean;
+  onToggleDim: () => void;
 }
 
 export default function MemoryBannerWidget({
@@ -40,16 +41,13 @@ export default function MemoryBannerWidget({
   year,
   isEditing,
   onToggleEdit,
-  isDarkroom,
-  onToggleDarkroom,
+  isDimmed,
+  onToggleDim,
 }: MemoryBannerWidgetProps) {
   const { deleteMonthMemory, updateMonthMemoryDetails } = useApp();
 
   // 3D Flip state
   const [isFlipped, setIsFlipped] = useState(false);
-
-  // Minimal twist: Silver-Gelatin B&W vs Color film print toggle
-  const [isMonochrome, setIsMonochrome] = useState(false);
 
   // Video playback toggle if the memory URL is a YouTube video
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,7 +60,9 @@ export default function MemoryBannerWidget({
   const [titleInput, setTitleInput] = useState(memory.title || '');
   const [locationInput, setLocationInput] = useState(memory.location || '');
   const [genreInput, setGenreInput] = useState(memory.genre || '');
-  const [geotagUrlInput, setGeotagUrlInput] = useState(memory.geotagUrl || '');
+  const [ticketUrlInput, setTicketUrlInput] = useState(memory.geotagUrl || '');
+  const [yearInput, setYearInput] = useState(memory.year || '');
+  const [stillUrlInput, setStillUrlInput] = useState(memory.stillUrl || '');
 
   // Reflection state
   const [reasonText, setReasonText] = useState(memory.reason || '');
@@ -83,8 +83,10 @@ export default function MemoryBannerWidget({
     setTitleInput(memory.title || '');
     setLocationInput(memory.location || '');
     setGenreInput(memory.genre || '');
-    setGeotagUrlInput(memory.geotagUrl || '');
-  }, [memory.title, memory.location, memory.genre, memory.geotagUrl]);
+    setTicketUrlInput(memory.geotagUrl || '');
+    setYearInput(memory.year || '');
+    setStillUrlInput(memory.stillUrl || '');
+  }, [memory.title, memory.location, memory.genre, memory.geotagUrl, memory.year, memory.stillUrl]);
 
   useEffect(() => {
     setIsPlaying(false);
@@ -123,26 +125,29 @@ export default function MemoryBannerWidget({
       title: titleInput.trim() || 'Untitled Memory',
       location: locationInput.trim() || `${monthName} ${year}`,
       genre: genreInput.trim() || 'Core Memory',
-      geotagUrl: geotagUrlInput.trim() || undefined,
+      geotagUrl: ticketUrlInput.trim() || undefined,
+      year: yearInput.trim() || undefined,
+      stillUrl: stillUrlInput.trim() || undefined,
     });
     triggerSavedBadge();
   };
 
   const parsed = parseMusicUrl(memory.url);
-  const videoEmbed =
+  const trailerEmbed =
     parsed.platform === 'youtube' && parsed.embedUrl
       ? `${parsed.embedUrl}${parsed.embedUrl.includes('?') ? '&' : '?'}autoplay=1`
       : null;
 
-  const photoImage = memory.thumbnailUrl || memory.url;
-  const printTitle = memory.title || 'Untitled Memory';
-  const shortMonthYear = `${monthName.slice(0, 3).toUpperCase()} ${year}`;
+  const photoImage = memory.stillUrl || memory.thumbnailUrl || memory.url;
+  const yearMatch = (memory.title || '').match(/^(.*?)\s*\((\d{4})\)\s*$/);
+  const posterTitle = (yearMatch ? yearMatch[1] : memory.title) || 'Untitled Memory';
+  const posterYear = memory.year || (yearMatch ? yearMatch[2] : String(year));
 
-  // Archival Contact Print Palette (matches Movie's cream paper by day, charcoal print in darkroom)
-  const paperBg = isDarkroom ? '#15120F' : '#ECE9E2';
-  const inkColor = isDarkroom ? '#F1ECE2' : '#1E1B18';
-  const mutedInk = isDarkroom ? '#8F877C' : '#7A756F';
-  const ruleColor = isDarkroom ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
+  // Archival Contact Print Palette (matches Movie)
+  const paperBg = isDimmed ? '#15120F' : '#ECE9E2';
+  const inkColor = isDimmed ? '#F1ECE2' : '#1E1B18';
+  const mutedInk = isDimmed ? '#8F877C' : '#7A756F';
+  const ruleColor = isDimmed ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
 
   const currentRating = memory.rating ?? 10.0;
   const displayRating = hoverRating !== null && isEditing ? hoverRating : currentRating;
@@ -158,7 +163,7 @@ export default function MemoryBannerWidget({
   // Shared minimal pill styling (matching MovieBannerWidget)
   const pillBase =
     'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all cursor-pointer border active:scale-95';
-  const pillIdle = isDarkroom
+  const pillIdle = isDimmed
     ? 'border-white/15 text-[#F1ECE2]/80 hover:text-[#F1ECE2] hover:bg-white/10'
     : 'border-black/10 text-[#1E1B18]/70 hover:text-[#1E1B18] hover:bg-black/5';
 
@@ -182,7 +187,7 @@ export default function MemoryBannerWidget({
           }}
         >
           {/* ========================================================
-              FRONT SIDE: Minimalist Archival Contact Print
+              FRONT SIDE: Minimalist Memory Poster Print
              ======================================================== */}
           <div
             className={`w-full rounded-md p-5 sm:p-7 relative flex flex-col transition-colors duration-700 ${
@@ -191,7 +196,7 @@ export default function MemoryBannerWidget({
             style={{
               backgroundColor: paperBg,
               color: inkColor,
-              boxShadow: isDarkroom
+              boxShadow: isDimmed
                 ? '0 35px 80px -15px rgba(0,0,0,0.9)'
                 : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
@@ -200,48 +205,28 @@ export default function MemoryBannerWidget({
               minHeight: '820px',
             }}
           >
-            {/* Top Bar: Darkroom · B&W/Color Twist · Edit/Done · Flip Postcard */}
+            {/* Top Bar: Dim Lights · Edit/Done · Flip Ticket */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onToggleDarkroom}
-                  className={`${pillBase} ${
-                    isDarkroom ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
-                  }`}
-                  title={isDarkroom ? 'Switch to daylight archival paper' : 'Switch to midnight darkroom print'}
-                >
-                  {isDarkroom ? (
-                    <>
-                      <Sun className="w-3.5 h-3.5 text-amber-300" />
-                      <span>Daylight</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon className="w-3.5 h-3.5" />
-                      <span>Darkroom</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Minimal Photography Twist: Silver-Gelatin B&W vs Color toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsMonochrome(!isMonochrome)}
-                  className={`${pillBase} ${
-                    isMonochrome
-                      ? isDarkroom
-                        ? 'bg-white/15 border-white/30 text-white'
-                        : 'bg-black/10 border-black/25 text-black'
-                      : pillIdle
-                  }`}
-                  title="Toggle Silver-Gelatin B&W or Color film stock"
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-wider">
-                    {isMonochrome ? 'B&W 400' : 'Color'}
-                  </span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onToggleDim}
+                className={`${pillBase} ${
+                  isDimmed ? 'border-amber-300/50 text-amber-200 bg-amber-300/10' : pillIdle
+                }`}
+                title={isDimmed ? 'Turn the lights back on' : 'Dim the lights for a midnight print'}
+              >
+                {isDimmed ? (
+                  <>
+                    <Lightbulb className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                    <span>Lights On</span>
+                  </>
+                ) : (
+                  <>
+                    <LightbulbOff className="w-3.5 h-3.5" />
+                    <span>Dim Lights</span>
+                  </>
+                )}
+              </button>
 
               <div className="flex items-center gap-2">
                 <button
@@ -273,50 +258,36 @@ export default function MemoryBannerWidget({
                     setIsFlipped(true);
                   }}
                   className={`group ${pillBase} ${pillIdle}`}
-                  title="Flip to view Archival Postcard & Keepsake Note"
+                  title="Flip to view Time Capsule & Field Notes"
                 >
-                  <Repeat className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                  <span>Flip Print</span>
+                  <Ticket className="w-3.5 h-3.5 text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
+                  <span>Flip Postcard</span>
                 </button>
               </div>
             </div>
 
             {/* ========================================================
-                MINIMAL TWIST: 35MM CONTACT SHEET INDEX BAR ABOVE PHOTO
+                1. ARCHIVAL PHOTOGRAPH STILL
                ======================================================== */}
-            <div
-              className="flex items-center justify-between py-1.5 px-1 border-t font-mono text-[10px] tracking-[0.2em] uppercase"
-              style={{ borderColor: ruleColor, color: mutedInk }}
-            >
-              <span>ARCHIVE N° {monthId}</span>
-              <span>35MM · FRAME 24A ▸</span>
-              <span>I &amp; II</span>
-            </div>
-
-            {/* ========================================================
-                1. ARCHIVAL PHOTOGRAPH WITH MINIMAL REGISTRATION MARKS
-               ======================================================== */}
-            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/85 group">
-              {isPlaying && videoEmbed ? (
+            <div className="relative w-full aspect-[4/3] overflow-hidden bg-black/80 group">
+              {isPlaying && trailerEmbed ? (
                 <iframe
-                  src={videoEmbed}
+                  src={trailerEmbed}
                   width="100%"
                   height="100%"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                   className="w-full h-full"
-                  title={printTitle}
+                  title={posterTitle}
                 />
               ) : (
                 <>
                   {photoImage ? (
                     <img
                       src={photoImage}
-                      alt={printTitle}
-                      className={`w-full h-full object-cover transition-all duration-700 group-hover:scale-[1.02] ${
-                        isMonochrome ? 'grayscale contrast-110' : ''
-                      }`}
+                      alt={posterTitle}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -324,7 +295,7 @@ export default function MemoryBannerWidget({
                     </div>
                   )}
 
-                  {videoEmbed ? (
+                  {trailerEmbed ? (
                     <button
                       type="button"
                       onClick={() => setIsPlaying(true)}
@@ -340,7 +311,7 @@ export default function MemoryBannerWidget({
                       href={targetQrUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <span className="px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/30">
                         Open Full Photograph ↗
@@ -351,19 +322,28 @@ export default function MemoryBannerWidget({
               )}
             </div>
 
-            {/* Bottom Contact-Sheet Rule with Subtle Date Stamp */}
-            <div
-              className="flex items-center justify-between py-1.5 px-1 border-b font-mono text-[10px] tracking-[0.18em] uppercase"
-              style={{ borderColor: ruleColor, color: mutedInk }}
-            >
-              <span>FIG. 01 — {(memory.location || `${monthName} ${year}`).toUpperCase()}</span>
-              <span>{isMonochrome ? 'SILVER GELATIN' : 'ARCHIVAL CHROMOGENIC'}</span>
-            </div>
+            {/* Optional custom still URL while editing */}
+            {isEditing && (
+              <div className="mt-2 flex items-center gap-2 text-[11px]">
+                <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
+                  photo image
+                </span>
+                <input
+                  type="url"
+                  value={stillUrlInput}
+                  onChange={(e) => setStillUrlInput(e.target.value)}
+                  onBlur={handleDetailBlur}
+                  placeholder="Optional: paste memory photo URL..."
+                  className={editField}
+                  style={{ borderColor: ruleColor, color: inkColor }}
+                />
+              </div>
+            )}
 
             {/* ========================================================
-                2. TITLE + MONTH/YEAR STAMP (Mirrors Movie Poster Typography)
+                2. TITLE + YEAR
                ======================================================== */}
-            <div className="mt-5">
+            <div className="mt-6">
               {isEditing ? (
                 <div className="flex items-end gap-3">
                   <input
@@ -375,28 +355,33 @@ export default function MemoryBannerWidget({
                     className={`${editField} font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight`}
                     style={{ borderColor: ruleColor, color: inkColor }}
                   />
-                  <span
-                    className="font-poster text-lg sm:text-xl shrink-0 pb-0.5"
-                    style={{ color: mutedInk }}
-                  >
-                    {shortMonthYear}
-                  </span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
+                    onBlur={handleDetailBlur}
+                    placeholder="YEAR"
+                    className={`${editField} font-poster text-lg sm:text-xl w-16 shrink-0`}
+                    style={{ borderColor: ruleColor, color: inkColor }}
+                  />
                 </div>
               ) : (
                 <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl">
-                  {printTitle}
+                  {posterTitle}
                   <span
-                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2.5 align-baseline"
-                    style={{ color: isDarkroom ? '#BDB4A8' : '#4A4540' }}
+                    className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2 align-baseline"
+                    style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
                   >
-                    {shortMonthYear}
+                    {posterYear}
                   </span>
                 </h3>
               )}
             </div>
 
             {/* ========================================================
-                3. SWISS-GRID METADATA ROWS: location · mood · archive · kept
+                3. METADATA ROWS: location · mood · archive · rated
                ======================================================== */}
             <div className="mt-4 space-y-1.5 font-poster text-sm sm:text-[15px] tracking-wide">
               {[
@@ -405,24 +390,28 @@ export default function MemoryBannerWidget({
                   value: memory.location || `${monthName} ${year}`,
                   input: locationInput,
                   setInput: setLocationInput,
-                  placeholder: 'TOKYO / BANGKOK / PARIS',
+                  placeholder: 'LOCATION / CITY',
                 },
                 {
                   label: 'mood / vibe',
                   value: memory.genre || 'Core Memory',
                   input: genreInput,
                   setInput: setGenreInput,
-                  placeholder: 'LATE NIGHT WALK / GOLDEN HOUR',
+                  placeholder: 'MOOD / VIBE',
+                },
+                {
+                  label: 'archive',
+                  value: `ROLL ${year} · FRAME 24A`,
+                  input: '',
+                  setInput: () => {},
+                  placeholder: '',
                 },
               ].map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline"
-                >
+                <div key={row.label} className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
                     {row.label}
                   </span>
-                  {isEditing ? (
+                  {isEditing && row.label !== 'archive' ? (
                     <input
                       type="text"
                       value={row.input}
@@ -438,20 +427,10 @@ export default function MemoryBannerWidget({
                 </div>
               ))}
 
-              {/* Static archival date row */}
-              <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-baseline">
-                <span className="font-light lowercase" style={{ color: mutedInk }}>
-                  catalogued
-                </span>
-                <span className="uppercase font-normal truncate">
-                  {monthName} {year} · NEGATIVE N° 24A
-                </span>
-              </div>
-
-              {/* Minimal rating row (locked unless editing) */}
+              {/* Memory Rating row (locked unless editing) */}
               <div className="grid grid-cols-[96px_1fr] sm:grid-cols-[108px_1fr] items-center">
                 <span className="font-light lowercase" style={{ color: mutedInk }}>
-                  core index
+                  rated
                 </span>
                 {isEditing ? (
                   <div className="flex items-center gap-1 flex-wrap">
@@ -485,9 +464,7 @@ export default function MemoryBannerWidget({
                       style={{ borderColor: ruleColor, color: inkColor }}
                       title="Edit decimal rating"
                     />
-                    <span className="text-xs" style={{ color: mutedInk }}>
-                      / 10
-                    </span>
+                    <span className="text-xs" style={{ color: mutedInk }}>/ 10</span>
                   </div>
                 ) : (
                   <span className="uppercase flex items-center gap-1.5">
@@ -499,9 +476,9 @@ export default function MemoryBannerWidget({
             </div>
 
             {/* ========================================================
-                4. CAPTURED WITH (mirrors Movie's "starring" line)
+                4. SUBJECTS (mirrors Movie's "starring" line)
                ======================================================== */}
-            <div className="mt-5 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
+            <div className="mt-6 font-poster text-xs sm:text-sm tracking-wide flex items-baseline gap-3">
               <span className="font-light lowercase shrink-0" style={{ color: mutedInk }}>
                 subjects
               </span>
@@ -523,7 +500,7 @@ export default function MemoryBannerWidget({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full hover:opacity-100 opacity-80 transition-opacity"
-                  title="Open full photo or location pin"
+                  title="Open original photograph"
                 >
                   <span>Original File</span>
                   <ExternalLink className="w-3 h-3" />
@@ -542,8 +519,7 @@ export default function MemoryBannerWidget({
           </div>
 
           {/* ========================================================
-              BACK SIDE: Minimal Archival Postcard Stub + Field Notes
-              (same paper, ink & condensed type as the front)
+              BACK SIDE: Poster-Print Time Capsule Stub + Field Notes
              ======================================================== */}
           <div
             className={`w-full absolute inset-0 rounded-md p-5 sm:p-7 flex flex-col transition-colors duration-700 ${
@@ -552,7 +528,7 @@ export default function MemoryBannerWidget({
             style={{
               backgroundColor: paperBg,
               color: inkColor,
-              boxShadow: isDarkroom
+              boxShadow: isDimmed
                 ? '0 35px 80px -15px rgba(0,0,0,0.9)'
                 : '0 25px 60px -20px rgba(30,27,24,0.35), 0 2px 6px rgba(30,27,24,0.08)',
               backfaceVisibility: 'hidden',
@@ -567,7 +543,7 @@ export default function MemoryBannerWidget({
                 className="font-mono text-[11px] tracking-widest uppercase"
                 style={{ color: mutedInk }}
               >
-                Archival Postcard &amp; Field Notes
+                Time Capsule &amp; Field Notes
               </span>
 
               <div className="flex items-center gap-2">
@@ -599,7 +575,7 @@ export default function MemoryBannerWidget({
                     setIsFlipped(false);
                   }}
                   className={`group ${pillBase} ${pillIdle}`}
-                  title="Flip back to the photograph"
+                  title="Flip back to the poster"
                 >
                   <Repeat className="w-3.5 h-3.5 group-hover:-rotate-180 transition-transform duration-500" />
                   <span>Flip Back</span>
@@ -608,20 +584,20 @@ export default function MemoryBannerWidget({
             </div>
 
             {/* ========================================================
-                1. HEADLINE (mirrors Movie's "Admit Two · Google & Nami")
+                1. HEADLINE
                ======================================================== */}
             <h3 className="font-poster font-bold uppercase leading-[0.95] tracking-tight text-4xl sm:text-5xl mt-2">
               Time Capsule
               <span
-                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2.5"
-                style={{ color: isDarkroom ? '#BDB4A8' : '#4A4540' }}
+                className="font-poster font-normal text-xl sm:text-2xl tracking-normal ml-2"
+                style={{ color: isDimmed ? '#BDB4A8' : '#4A4540' }}
               >
                 Google &amp; Nami
               </span>
             </h3>
 
             {/* ========================================================
-                2. MINIMAL ARCHIVAL STUB: metadata rows + tear-off Geotag QR
+                2. MINIMAL TIME CAPSULE STUB: metadata rows + tear-off QR
                ======================================================== */}
             <div
               className="mt-5 flex flex-col sm:flex-row border"
@@ -632,11 +608,11 @@ export default function MemoryBannerWidget({
                 style={{ borderColor: ruleColor }}
               >
                 {[
-                  { label: 'moment', value: printTitle },
+                  { label: 'moment', value: posterTitle },
                   { label: 'location', value: memory.location || `${monthName} ${year}` },
-                  { label: 'mood', value: memory.genre || 'Core Memory' },
+                  { label: 'date', value: `${monthName} ${year}` },
                   { label: 'frame', value: `Roll ${year} · Frame 24A` },
-                  { label: 'core index', value: `♡ ${currentRating.toFixed(1)} / 10` },
+                  { label: 'rated', value: `♡ ${currentRating.toFixed(1)} / 10` },
                 ].map((row) => (
                   <div
                     key={row.label}
@@ -650,24 +626,24 @@ export default function MemoryBannerWidget({
                 ))}
               </div>
 
-              {/* Tear-off Geotag QR stub */}
+              {/* Tear-off QR stub */}
               <div className="sm:w-36 p-4 flex flex-col items-center justify-center gap-1.5 shrink-0">
                 <a
                   href={targetQrUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:opacity-80 transition-opacity"
-                  title="Scan or click to open Geotag Map Pin / Original Photo"
+                  title="Scan or click to open Google Maps Geotag"
                 >
                   <img src={qrCodeUrl} alt="Geotag QR code" className="w-20 h-20" />
                 </a>
                 <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: mutedInk }}>
-                  PIN #{monthId.replace('-', '')}
+                  PIN #{monthId.replace('-', '')}02
                 </span>
               </div>
             </div>
 
-            {/* Optional Geotag / Google Maps link while editing */}
+            {/* Optional Geotag QR link while editing */}
             {isEditing && (
               <div className="mt-2 flex items-center gap-2 text-[11px]">
                 <span className="lowercase whitespace-nowrap" style={{ color: mutedInk }}>
@@ -675,10 +651,10 @@ export default function MemoryBannerWidget({
                 </span>
                 <input
                   type="url"
-                  value={geotagUrlInput}
-                  onChange={(e) => setGeotagUrlInput(e.target.value)}
+                  value={ticketUrlInput}
+                  onChange={(e) => setTicketUrlInput(e.target.value)}
                   onBlur={handleDetailBlur}
-                  placeholder="Optional: Google Maps pin or original photo URL for the QR..."
+                  placeholder="Optional: Google Maps pin URL for the QR..."
                   className={editField}
                   style={{ borderColor: ruleColor, color: inkColor }}
                 />
@@ -686,13 +662,13 @@ export default function MemoryBannerWidget({
             )}
 
             {/* ========================================================
-                3. KEEPSAKE LETTER: "If we could pause time..."
+                3. FIELD NOTES: if we could pause time in this exact second
                ======================================================== */}
             <div className="mt-6 flex-1 flex flex-col">
               <div className="flex items-baseline justify-between gap-3 mb-2 font-poster text-sm sm:text-[15px] tracking-wide">
                 <span>
                   <span className="font-light lowercase" style={{ color: mutedInk }}>
-                    field notes
+                    notes
                   </span>
                   <span className="uppercase ml-3">If we could pause time in this exact second</span>
                 </span>
@@ -725,7 +701,7 @@ export default function MemoryBannerWidget({
                       reasonText
                     ) : (
                       <span className="italic" style={{ color: mutedInk }}>
-                        No field notes yet. Click Edit to write down the story behind this photograph...
+                        No field notes yet. Click Edit to write down your memories from this day...
                       </span>
                     )}
                   </div>
@@ -753,7 +729,7 @@ export default function MemoryBannerWidget({
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full opacity-80 hover:opacity-100 transition-opacity cursor-pointer shrink-0"
               >
                 <Repeat className="w-3 h-3" />
-                <span>Back to print</span>
+                <span>Back to poster</span>
               </button>
             </div>
           </div>
@@ -783,7 +759,7 @@ export default function MemoryBannerWidget({
 
             <div className="space-y-1.5">
               <h4 className="font-poster uppercase text-2xl font-bold tracking-tight">
-                Remove this print?
+                Remove this memory?
               </h4>
               <p className="text-xs sm:text-sm leading-relaxed px-2" style={{ color: mutedInk }}>
                 This will delete the archived photograph and field notes for {monthName} {year}.
@@ -794,7 +770,7 @@ export default function MemoryBannerWidget({
               className="py-2 px-3 border text-xs truncate font-poster uppercase tracking-wide"
               style={{ borderColor: ruleColor }}
             >
-              <span>{printTitle}</span>
+              <span>{posterTitle}</span>
               {memory.location && (
                 <span style={{ color: mutedInk }}> · {memory.location}</span>
               )}

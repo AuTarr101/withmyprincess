@@ -23,8 +23,8 @@ export default function MemoryRankingLog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // "Darkroom" midnight archival print toggle (mirrors Movie's Dim Lights mode)
-  const [isDarkroom, setIsDarkroom] = useState(false);
+  // "Dim the Lights" screening / midnight print mode
+  const [isDimmed, setIsDimmed] = useState(false);
 
   const monthId = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
   const monthData = getMonth(selectedYear, selectedMonth);
@@ -76,22 +76,27 @@ export default function MemoryRankingLog() {
 
   const currentMemory = monthData.memoryLog;
   const hasMemory = Boolean(currentMemory?.url);
+  const canvasBg = currentMemory?.canvasColor || '#1A1512';
   const defaultPageBg = theme === 'dark' ? '#140F12' : '#FDFBF7';
 
   return (
     <div className="max-w-3xl mx-auto py-2 px-2 space-y-6 relative">
-      {/* Dynamic Main Page Background (shifts to darkroom-black when Darkroom mode is active) */}
+      {/* Dynamic Main Page Background (shifts to midnight-black when Dim Lights mode is active) */}
       <div
         className="fixed inset-0 pointer-events-none transition-colors duration-700 -z-30"
         style={{
-          backgroundColor: isDarkroom ? '#080706' : defaultPageBg,
+          backgroundColor: isDimmed
+            ? '#040306'
+            : hasMemory
+            ? canvasBg
+            : defaultPageBg,
         }}
       />
 
       {/* 1. Floating circular tab for month changing */}
       <div
         className={`flex items-center justify-between w-full max-w-md mx-auto px-6 py-3 rounded-full bg-white/95 dark:bg-[#22181E]/95 backdrop-blur-md shadow-md border border-cream-200 dark:border-[#3A2832] text-stone-800 dark:text-rose-100 transition-all duration-500 ${
-          isDarkroom ? 'opacity-35 hover:opacity-100' : 'opacity-100'
+          isDimmed ? 'opacity-35 hover:opacity-100' : 'opacity-100'
         }`}
       >
         <button
@@ -128,8 +133,8 @@ export default function MemoryRankingLog() {
             onChange={(e) => setInputUrl(e.target.value)}
             placeholder={
               hasMemory
-                ? 'Replace print with a new photo link or video URL...'
-                : 'Paste photo URL or video link to archive your memory print...'
+                ? 'Replace photo with a new image link or video URL...'
+                : 'Paste photo URL or video link to archive your memory...'
             }
             disabled={isSubmitting}
             className="flex-1 bg-transparent px-4 sm:px-6 py-2.5 text-sm sm:text-base text-stone-800 dark:text-rose-100 placeholder-stone-400 dark:placeholder-stone-500 outline-none rounded-full disabled:opacity-50"
@@ -143,16 +148,16 @@ export default function MemoryRankingLog() {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Developing...</span>
+                <span>Archiving...</span>
               </>
             ) : (
-              <span>{hasMemory ? 'Update Print' : 'Archive Print'}</span>
+              <span>{hasMemory ? 'Update Photo' : 'Archive Photo'}</span>
             )}
           </button>
         </form>
       )}
 
-      {/* 3. Memory Print Widget or Minimal Empty State */}
+      {/* 3. Memory space: MemoryBannerWidget or Clean Minimal Empty State */}
       <div className="pt-2">
         {hasMemory && currentMemory ? (
           <MemoryBannerWidget
@@ -162,31 +167,20 @@ export default function MemoryRankingLog() {
             year={selectedYear}
             isEditing={isEditing}
             onToggleEdit={() => setIsEditing(!isEditing)}
-            isDarkroom={isDarkroom}
-            onToggleDarkroom={() => setIsDarkroom(!isDarkroom)}
+            isDimmed={isDimmed}
+            onToggleDim={() => setIsDimmed(!isDimmed)}
           />
         ) : (
-          <div className="w-full max-w-xl mx-auto rounded-md bg-[#ECE9E2] dark:bg-[#15120F] text-[#1E1B18] dark:text-[#F1ECE2] p-8 sm:p-10 text-center shadow-xl border border-black/10 dark:border-white/10">
-            <div className="flex items-center justify-between pb-3 mb-6 border-b border-black/10 dark:border-white/10 font-mono text-[10px] tracking-[0.2em] uppercase opacity-60">
-              <span>ARCHIVE N° {monthId}</span>
-              <span>35MM · UNEXPOSED FRAME</span>
-              <span>I &amp; II</span>
+          <div className="w-full max-w-2xl mx-auto rounded-3xl bg-white/70 dark:bg-[#1E151A]/75 backdrop-blur-sm border border-cream-200/80 dark:border-[#382630] p-12 text-center shadow-xs">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-500">
+              <Camera className="w-7 h-7 stroke-[1.5]" />
             </div>
-
-            <div className="w-full aspect-[4/3] border border-dashed border-black/20 dark:border-white/20 flex flex-col items-center justify-center p-6 mb-6">
-              <Camera className="w-8 h-8 stroke-[1.25] opacity-45 mb-3" />
-              <p className="font-poster uppercase text-2xl sm:text-3xl tracking-tight font-bold">
-                Unexposed Frame
-              </p>
-              <p className="text-xs sm:text-sm opacity-60 mt-1 max-w-xs">
-                Paste a photo link or video URL above to develop your print for {monthName} {selectedYear}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between font-mono text-[10px] tracking-widest uppercase opacity-50">
-              <span>EVER TOGETHER ♡</span>
-              <span>{monthName.slice(0, 3)} {selectedYear}</span>
-            </div>
+            <p className="font-serif text-xl text-stone-600 dark:text-rose-100 font-medium">
+              No memory archived for this month yet
+            </p>
+            <p className="text-xs sm:text-sm text-stone-400 mt-1.5">
+              Paste a photo link or video URL above to capture your memory for {monthName} {selectedYear}
+            </p>
           </div>
         )}
       </div>

@@ -241,46 +241,43 @@ export default function MonthlyShowcaseSlider({
       );
     }
 
-    // 2. GAME — Pure Minimalist 1970s Walnut & Brushed Silver Card
+    // 2. GAME — Pure Minimalist Print Card (matching Movie)
     if (slug === 'game') {
       const game = data.gameLog;
       const hasGame = Boolean(game?.url);
-      const image = game?.thumbnailUrl || game?.url;
+      const image = game?.stillUrl || game?.thumbnailUrl || game?.url;
       const rating = (game?.rating ?? 9.5).toFixed(1);
+      const paperBg = isDark ? '#171411' : '#ECE9E2';
+      const ink = isDark ? '#F1ECE2' : '#1E1B18';
+      const muted = isDark ? '#8F877C' : '#7A756F';
+      const rule = isDark ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
 
       return (
         <div
-          className="w-full h-full rounded-md p-6 sm:p-8 flex flex-col justify-between"
+          className="w-full h-full rounded-md p-6 sm:p-8 flex flex-col justify-between transition-colors duration-700"
           style={{
-            backgroundColor: '#E6DFD3',
-            color: '#23170F',
-            border: '6px solid #3D2212',
-            boxShadow: '0 30px 70px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(61,34,18,0.25)',
+            backgroundColor: paperBg,
+            color: ink,
+            boxShadow: '0 30px 70px -20px rgba(0,0,0,0.45)',
           }}
         >
           <div>
-            <div className="flex items-center justify-between pb-2.5 mb-4 border-b border-[#C7BCAE] font-mono text-[10px] tracking-[0.22em] uppercase text-[#6E563B]">
+            <div
+              className="flex items-center justify-between pb-2.5 mb-4 border-b font-mono text-[10px] tracking-[0.22em] uppercase"
+              style={{ borderColor: rule, color: muted }}
+            >
               <span>{ownerTag}</span>
-              <span>02 · CH 03 TELEVISION · {shortDate}</span>
+              <span>02 · GAME PRINT · {shortDate}</span>
             </div>
 
-            <div className="w-full aspect-[16/10] rounded-xl bg-[#141210] p-2 border border-[#7E7464] relative overflow-hidden">
-              <div className="w-full h-full rounded-lg overflow-hidden relative bg-black">
-                {hasGame && image ? (
-                  <img src={image} alt={game?.title || 'Game'} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
-                    {hasGame ? 'CH 03 ACTIVE' : 'NO SIGNAL'}
-                  </div>
-                )}
-                <div
-                  className="absolute inset-0 pointer-events-none opacity-25"
-                  style={{
-                    backgroundImage:
-                      'repeating-linear-gradient(0deg, rgba(0,0,0,0.5) 0px, rgba(0,0,0,0.5) 1px, transparent 1px, transparent 3px)',
-                  }}
-                />
-              </div>
+            <div className="w-full aspect-[16/10] bg-black/85 overflow-hidden relative">
+              {hasGame && image ? (
+                <img src={image} alt={game?.title || 'Game'} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                  {hasGame ? 'GAME ARCHIVED' : 'NO CARTRIDGE'}
+                </div>
+              )}
             </div>
 
             <div className="mt-5">
@@ -291,21 +288,24 @@ export default function MonthlyShowcaseSlider({
 
             <div className="mt-4 space-y-1 font-poster text-xs sm:text-sm tracking-wide">
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7A6A58]">studio</span>
+                <span className="lowercase" style={{ color: muted }}>studio</span>
                 <span className="uppercase truncate">{hasGame ? game?.developer || '—' : '—'}</span>
               </div>
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7A6A58]">genre</span>
+                <span className="lowercase" style={{ color: muted }}>genre</span>
                 <span className="uppercase truncate">{hasGame ? game?.genre || '—' : '—'}</span>
               </div>
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7A6A58]">signal · vu</span>
-                <span className="uppercase">{hasGame ? `${rating} / 10.0 dB` : '—'}</span>
+                <span className="lowercase" style={{ color: muted }}>rated</span>
+                <span className="uppercase">{hasGame ? `${rating} / 10` : '—'}</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#C7BCAE] flex items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase text-[#6E563B]">
+          <div
+            className="pt-4 border-t flex items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase"
+            style={{ borderColor: rule, color: muted }}
+          >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs">
               {hasGame && game?.reason ? `“${game.reason}”` : 'Ever Together ♡'}
             </span>
@@ -315,91 +315,71 @@ export default function MonthlyShowcaseSlider({
       );
     }
 
-    // 3. FOOD — Pure Minimalist Picture on a Porcelain Plate Card
+    // 3. FOOD — Pure Minimalist Print Card (matching Movie)
     if (slug === 'food') {
       const food = data.foodLog;
       const hasFood = Boolean(food?.url);
-      const image = food?.thumbnailUrl || food?.url;
+      const image = food?.stillUrl || food?.thumbnailUrl || food?.url;
       const rating = (food?.rating ?? 9.6).toFixed(1);
+      const paperBg = isDark ? '#171411' : '#ECE9E2';
+      const ink = isDark ? '#F1ECE2' : '#1E1B18';
+      const muted = isDark ? '#8F877C' : '#7A756F';
+      const rule = isDark ? 'rgba(241,236,226,0.14)' : 'rgba(30,27,24,0.14)';
 
       return (
         <div
-          className="w-full h-full rounded-md p-6 sm:p-8 flex flex-col justify-between"
+          className="w-full h-full rounded-md p-6 sm:p-8 flex flex-col justify-between transition-colors duration-700"
           style={{
-            backgroundColor: '#F5EFE4',
-            color: '#261B17',
-            border: '5px solid #3B231E',
-            boxShadow: '0 30px 70px -20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(158,120,64,0.35)',
+            backgroundColor: paperBg,
+            color: ink,
+            boxShadow: '0 30px 70px -20px rgba(0,0,0,0.45)',
           }}
         >
           <div>
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#D6C7B0] font-mono text-[10px] tracking-[0.22em] uppercase text-[#7A2828]">
+            <div
+              className="flex items-center justify-between pb-2.5 mb-4 border-b font-mono text-[10px] tracking-[0.22em] uppercase"
+              style={{ borderColor: rule, color: muted }}
+            >
               <span>{ownerTag}</span>
               <span>03 · PLAT DU MOIS · {shortDate}</span>
             </div>
 
-            {/* Pure Sculpted Porcelain Plate */}
-            <div className="w-full flex items-center justify-center my-3">
-              <div
-                className="w-44 h-44 sm:w-52 sm:h-52 rounded-full flex items-center justify-center relative"
-                style={{
-                  background:
-                    'radial-gradient(circle at 32% 26%, #FFFFFF 0%, #FCFBF9 40%, #EFE9DC 78%, #D8CEB8 100%)',
-                  boxShadow:
-                    '0 18px 36px -8px rgba(28, 19, 14, 0.38), inset 0 2px 4px rgba(255,255,255,0.95), inset 0 -4px 10px rgba(145,130,108,0.35)',
-                }}
-              >
-                <div
-                  className="absolute inset-3 rounded-full pointer-events-none"
-                  style={{ border: '1.5px solid rgba(122, 40, 40, 0.45)' }}
-                />
-                <div
-                  className="absolute inset-4 rounded-full pointer-events-none"
-                  style={{ border: '1px solid rgba(180, 138, 78, 0.45)' }}
-                />
-                <div
-                  className="rounded-full overflow-hidden flex items-center justify-center bg-[#EFE9DC] relative"
-                  style={{
-                    width: '68%',
-                    height: '68%',
-                    boxShadow: 'inset 0 6px 15px rgba(45, 33, 24, 0.28)',
-                    border: '1.5px solid rgba(212, 200, 180, 0.85)',
-                  }}
-                >
-                  {hasFood && image ? (
-                    <img src={image} alt={food?.title || 'Dish'} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-[#8C7D6B]">
-                      EMPTY PLATE
-                    </span>
-                  )}
+            <div className="w-full aspect-[16/10] bg-black/85 overflow-hidden relative">
+              {hasFood && image ? (
+                <img src={image} alt={food?.title || 'Dish'} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-mono text-[10px] tracking-[0.25em] uppercase text-white/30">
+                  {hasFood ? 'DISH PLATED' : 'UNSERVED COURSE'}
                 </div>
-              </div>
+              )}
             </div>
 
-            <div className="mt-3">
+            <div className="mt-5">
               <h3 className="font-poster font-bold uppercase text-3xl sm:text-4xl tracking-tight leading-[0.95] truncate">
                 {hasFood ? food?.title || 'SIGNATURE DISH' : 'UNSERVED COURSE'}
               </h3>
             </div>
 
-            <div className="mt-3 space-y-1 font-poster text-xs sm:text-sm tracking-wide">
+            <div className="mt-4 space-y-1 font-poster text-xs sm:text-sm tracking-wide">
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7E6B58]">maison</span>
+                <span className="lowercase" style={{ color: muted }}>maison</span>
                 <span className="uppercase truncate">{hasFood ? food?.restaurant || '—' : '—'}</span>
               </div>
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7E6B58]">cuisine</span>
+                <span className="lowercase" style={{ color: muted }}>cuisine</span>
                 <span className="uppercase truncate">{hasFood ? food?.genre || '—' : '—'}</span>
               </div>
               <div className="grid grid-cols-[92px_1fr]">
-                <span className="lowercase text-[#7E6B58]">gastronomie</span>
-                <span className="uppercase">{hasFood ? `✦ ${rating} / 10` : '—'}</span>
+                <span className="lowercase" style={{ color: muted }}>rated</span>
+                <span className="uppercase">{hasFood ? `${rating} / 10` : '—'}</span>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#D6C7B0] flex items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase text-[#6E5638]">
+          <div
+            className="pt-4 border-t flex items-center justify-between font-mono text-[10px] tracking-[0.2em] uppercase"
+            style={{ borderColor: rule, color: muted }}
+          >
             <span className="truncate italic font-serif normal-case tracking-normal text-xs">
               {hasFood && food?.reason ? `“${food.reason}”` : 'Ever Together ♡'}
             </span>
