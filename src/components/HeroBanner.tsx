@@ -16,7 +16,7 @@ export default function HeroBanner() {
   const showcaseHref = `/showcase?year=${thailandTime.year}&month=${thailandTime.month}`;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FAF5EE] via-[#F8F2E8] to-[#FAF5EE] dark:from-[#241A1E] dark:via-[#1E1519] dark:to-[#171014] border border-[#EDE4D8] dark:border-[#382630] p-7 sm:p-10 shadow-[0_4px_24px_rgba(110,45,59,0.06)] dark:shadow-[0_4px_30px_rgba(0,0,0,0.5)] transition-all duration-300">
+    <div className="shower-glass relative overflow-hidden rounded-3xl p-7 sm:p-10 transition-all duration-300">
       
       {/* Top Right: Light / Dark Mode Slider */}
       <div className="absolute top-5 right-5 sm:top-7 sm:right-7 z-20">

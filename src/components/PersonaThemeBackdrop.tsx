@@ -24,53 +24,53 @@ export default function PersonaThemeBackdrop() {
     return () => clearTimeout(timer);
   }, [activePerspective]);
 
-  // Background gradient tuned to match His (cobalt/midnight blue) & Her (hot-pink/crimson) duotone photos
+  // Softened, airy background gradients tuned to gently complement His (cobalt) & Her (rose-pink) photos
   const backgroundGradient = isHis
     ? isDark
-      ? 'radial-gradient(circle at 0% 55%, rgba(21, 94, 212, 0.34) 0%, rgba(12, 45, 108, 0.22) 34%, rgba(10, 15, 26, 0.96) 72%, #090C14 100%)'
-      : 'radial-gradient(circle at 0% 50%, rgba(28, 104, 224, 0.20) 0%, rgba(76, 144, 245, 0.09) 36%, rgba(244, 247, 253, 0.95) 72%, #F9FAFD 100%)'
+      ? 'radial-gradient(circle at 0% 55%, rgba(28, 96, 204, 0.18) 0%, rgba(16, 48, 108, 0.10) 36%, rgba(11, 15, 24, 0.96) 74%, #0A0D14 100%)'
+      : 'radial-gradient(circle at 0% 50%, rgba(42, 112, 222, 0.11) 0%, rgba(92, 148, 238, 0.05) 38%, rgba(247, 249, 253, 0.96) 74%, #FAFBFD 100%)'
     : isDark
-    ? 'radial-gradient(circle at 100% 55%, rgba(232, 36, 117, 0.32) 0%, rgba(128, 17, 64, 0.20) 34%, rgba(20, 11, 16, 0.96) 72%, #11090E 100%)'
-    : 'radial-gradient(circle at 100% 50%, rgba(232, 36, 117, 0.19) 0%, rgba(244, 92, 155, 0.09) 36%, rgba(253, 246, 249, 0.95) 72%, #FDF9FB 100%)';
+    ? 'radial-gradient(circle at 100% 55%, rgba(214, 62, 122, 0.15) 0%, rgba(118, 26, 64, 0.09) 36%, rgba(19, 12, 16, 0.96) 74%, #110B0E 100%)'
+    : 'radial-gradient(circle at 100% 50%, rgba(224, 82, 138, 0.09) 0%, rgba(238, 128, 172, 0.04) 38%, rgba(253, 249, 251, 0.96) 74%, #FDFBFC 100%)';
 
   return (
     <>
-      {/* 1. Base Tuned Gradient & Ambient Aura Backdrop */}
+      {/* 1. Base Softened Gradient & Ambient Aura Backdrop */}
       <div
         aria-hidden="true"
         className="fixed inset-0 pointer-events-none z-0 overflow-hidden transition-colors duration-700"
         style={{
           backgroundColor: isHis
             ? isDark
-              ? '#090D16'
-              : '#F6F9FE'
+              ? '#0A0D14'
+              : '#F8FAFD'
             : isDark
-            ? '#130A0F'
-            : '#FDF8FA',
+            ? '#120B0F'
+            : '#FDFBFC',
           backgroundImage: backgroundGradient,
         }}
       >
-        {/* Directional Slide-Out Color Plume from Left (His) */}
+        {/* Subtle Directional Slide-Out Color Plume from Left (His) */}
         <div
-          className="absolute inset-y-0 left-0 w-[65vw] max-w-[900px] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          className="absolute inset-y-0 left-0 w-[58vw] max-w-[820px] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{
             transform: isHis ? 'translate3d(0%, 0, 0)' : 'translate3d(-105%, 0, 0)',
             opacity: isHis ? 1 : 0,
             background: isDark
-              ? 'linear-gradient(90deg, rgba(19, 92, 216, 0.26) 0%, rgba(15, 62, 148, 0.10) 48%, transparent 100%)'
-              : 'linear-gradient(90deg, rgba(25, 103, 226, 0.16) 0%, rgba(56, 132, 244, 0.05) 48%, transparent 100%)',
+              ? 'linear-gradient(90deg, rgba(25, 92, 204, 0.14) 0%, rgba(18, 62, 142, 0.05) 48%, transparent 100%)'
+              : 'linear-gradient(90deg, rgba(38, 108, 220, 0.08) 0%, rgba(68, 136, 238, 0.03) 48%, transparent 100%)',
           }}
         />
 
-        {/* Directional Slide-Out Color Plume from Right (Hers) */}
+        {/* Subtle Directional Slide-Out Color Plume from Right (Hers) */}
         <div
-          className="absolute inset-y-0 right-0 w-[65vw] max-w-[900px] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          className="absolute inset-y-0 right-0 w-[58vw] max-w-[820px] transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{
             transform: !isHis ? 'translate3d(0%, 0, 0)' : 'translate3d(105%, 0, 0)',
             opacity: !isHis ? 1 : 0,
             background: isDark
-              ? 'linear-gradient(270deg, rgba(232, 36, 117, 0.25) 0%, rgba(156, 22, 78, 0.10) 48%, transparent 100%)'
-              : 'linear-gradient(270deg, rgba(232, 36, 117, 0.15) 0%, rgba(242, 82, 148, 0.05) 48%, transparent 100%)',
+              ? 'linear-gradient(270deg, rgba(214, 62, 122, 0.12) 0%, rgba(142, 30, 76, 0.04) 48%, transparent 100%)'
+              : 'linear-gradient(270deg, rgba(224, 82, 138, 0.07) 0%, rgba(238, 118, 166, 0.025) 48%, transparent 100%)',
           }}
         />
       </div>
@@ -82,7 +82,7 @@ export default function PersonaThemeBackdrop() {
           transitionPulse ? 'z-30' : 'z-[2]'
         }`}
       >
-        {/* Kinetic Sweep Curtain on Switch */}
+        {/* Gentle Kinetic Sweep Curtain on Switch */}
         <div
           className="absolute inset-y-0 left-0 w-full transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{
@@ -91,7 +91,7 @@ export default function PersonaThemeBackdrop() {
                 ? 'translate3d(0%, 0, 0)'
                 : 'translate3d(-100%, 0, 0)',
             background:
-              'linear-gradient(90deg, rgba(20, 96, 220, 0.22) 0%, rgba(20, 96, 220, 0.06) 45%, transparent 80%)',
+              'linear-gradient(90deg, rgba(28, 98, 212, 0.13) 0%, rgba(28, 98, 212, 0.03) 45%, transparent 80%)',
           }}
         />
         <div
@@ -102,7 +102,7 @@ export default function PersonaThemeBackdrop() {
                 ? 'translate3d(0%, 0, 0)'
                 : 'translate3d(100%, 0, 0)',
             background:
-              'linear-gradient(270deg, rgba(232, 36, 117, 0.22) 0%, rgba(232, 36, 117, 0.06) 45%, transparent 80%)',
+              'linear-gradient(270deg, rgba(218, 66, 126, 0.12) 0%, rgba(218, 66, 126, 0.03) 45%, transparent 80%)',
           }}
         />
 
@@ -112,19 +112,19 @@ export default function PersonaThemeBackdrop() {
           style={{
             transform: isHis
               ? transitionPulse
-                ? 'translate3d(0%, 0, 0) scale(1.03)'
+                ? 'translate3d(0%, 0, 0) scale(1.02)'
                 : 'translate3d(-4%, 0, 0) scale(1)'
               : 'translate3d(-115%, 4%, 0) scale(0.94)',
             opacity: isHis ? 1 : 0,
           }}
         >
-          {/* Ambient cobalt glow behind his silhouette */}
+          {/* Softened cobalt glow behind his silhouette */}
           <div
             className="absolute -left-10 bottom-8 w-72 h-72 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
             style={{
               background: isDark
-                ? 'radial-gradient(circle, rgba(28, 112, 242, 0.42) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(28, 112, 242, 0.26) 0%, transparent 70%)',
+                ? 'radial-gradient(circle, rgba(32, 108, 232, 0.24) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(32, 108, 232, 0.15) 0%, transparent 70%)',
             }}
           />
           <img
@@ -135,8 +135,8 @@ export default function PersonaThemeBackdrop() {
             }`}
             style={{
               filter: isDark
-                ? 'drop-shadow(12px 8px 36px rgba(16, 88, 218, 0.45)) contrast(1.04)'
-                : 'drop-shadow(12px 10px 32px rgba(16, 74, 185, 0.28)) contrast(1.03)',
+                ? 'drop-shadow(10px 8px 30px rgba(18, 84, 204, 0.32))'
+                : 'drop-shadow(10px 8px 28px rgba(18, 72, 176, 0.18))',
             }}
           />
         </div>
@@ -147,19 +147,19 @@ export default function PersonaThemeBackdrop() {
           style={{
             transform: !isHis
               ? transitionPulse
-                ? 'translate3d(0%, 0, 0) scale(1.03)'
+                ? 'translate3d(0%, 0, 0) scale(1.02)'
                 : 'translate3d(4%, 0, 0) scale(1)'
               : 'translate3d(115%, 4%, 0) scale(0.94)',
             opacity: !isHis ? 1 : 0,
           }}
         >
-          {/* Ambient hot-pink glow behind her silhouette */}
+          {/* Softened rose-pink glow behind her silhouette */}
           <div
             className="absolute -right-10 bottom-8 w-72 h-72 sm:w-96 sm:h-96 rounded-full blur-3xl pointer-events-none"
             style={{
               background: isDark
-                ? 'radial-gradient(circle, rgba(232, 36, 117, 0.42) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(232, 36, 117, 0.25) 0%, transparent 70%)',
+                ? 'radial-gradient(circle, rgba(218, 64, 125, 0.22) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(218, 64, 125, 0.13) 0%, transparent 70%)',
             }}
           />
           <img
@@ -170,8 +170,8 @@ export default function PersonaThemeBackdrop() {
             }`}
             style={{
               filter: isDark
-                ? 'drop-shadow(-12px 8px 36px rgba(232, 36, 117, 0.45)) contrast(1.04)'
-                : 'drop-shadow(-12px 10px 32px rgba(210, 28, 103, 0.26)) contrast(1.03)',
+                ? 'drop-shadow(-10px 8px 30px rgba(214, 54, 118, 0.30))'
+                : 'drop-shadow(-10px 8px 28px rgba(198, 48, 108, 0.16))',
             }}
           />
         </div>
@@ -182,7 +182,7 @@ export default function PersonaThemeBackdrop() {
         aria-hidden="true"
         className="fixed inset-0 pointer-events-none z-[3] overflow-hidden"
         style={{
-          opacity: isDark ? 0.22 : 0.16,
+          opacity: isDark ? 0.20 : 0.14,
           mixBlendMode: isDark ? 'overlay' : 'multiply',
         }}
       >
